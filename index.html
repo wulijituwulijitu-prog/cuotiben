@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>错题本 · 公务员考试</title>
+<style>
+  :root {
+    --bg: #0a0e14;
+    --surface: #131a24;
+    --border: #1e2a3a;
+    --accent: #00d4aa;
+    --danger: #ff6b6b;
+    --warn: #ffc048;
+    --text: #c8d6e5;
+    --text-dim: #6b7d95;
+    --glow: rgba(0, 212, 170, 0.12);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  .grid-bg {
+    position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background-image:
+      linear-gradient(rgba(255,255,255,.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.015) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+
+  .container { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding: 32px 20px; }
+
+  /* ====== Top bar ====== */
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 24px; border-bottom: 1px solid var(--border); margin-bottom: 28px;
+    flex-wrap: wrap; gap: 16px;
+  }
+  .topbar h1 {
+    font-size: 1.4rem; font-weight: 700; color: #fff; letter-spacing: 1px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .topbar h1 .dot {
+    width: 8px; height: 8px; background: var(--accent); border-radius: 50%;
+    box-shadow: 0 0 10px var(--accent);
+  }
+  .topbar-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  /* ====== Buttons ====== */
+  .btn {
+    padding: 8px 20px; border-radius: 8px; font-size: 0.85rem;
+    font-weight: 500; cursor: pointer; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text);
+    transition: all 0.25s; letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); box-shadow: 0 0 14px var(--glow); }
+  .btn-primary { background: var(--accent); color: #0a0e14; border-color: var(--accent); font-weight: 600; }
+  .btn-primary:hover { box-shadow: 0 0 20px rgba(0, 212, 170, 0.35); }
+  .btn-sm { padding: 5px 12px; font-size: 0.78rem; border-radius: 6px; }
+  .btn-danger { color: var(--danger); }
+  .btn-danger:hover { border-color: var(--danger); box-shadow: 0 0 14px rgba(255, 107, 107, 0.2); }
+
+  /* ====== Sync ====== */
+  .sync-btn { position: relative; display: flex; align-items: center; gap: 6px; }
+  .sync-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .sync-dot.off { background: #555; }
+  .sync-dot.on { background: var(--accent); box-shadow: 0 0 6px var(--accent); }
+  .sync-dot.syncing { background: var(--warn); animation: syncPulse 0.8s infinite; }
+  .sync-dot.error { background: var(--danger); }
+  @keyframes syncPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+  .sync-status-text { font-size: 0.72rem; color: var(--text-dim); }
+
+  /* ====== Stats row ====== */
+  .stats-row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; text-align: center;
+  }
+  .stat-card .num { font-size: 2rem; font-weight: 700; color: #fff; }
+  .stat-card .num.accent { color: var(--accent); }
+  .stat-card .num.warn { color: var(--warn); }
+  .stat-card .num.danger { color: var(--danger); }
+  .stat-card .lbl { font-size: 0.78rem; color: var(--text-dim); margin-top: 4px; letter-spacing: 1px; }
+
+  /* ====== Toolbar ====== */
+  .toolbar {
+    display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center;
+  }
+  .toolbar input, .toolbar select {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 14px; color: var(--text); font-size: 0.85rem; outline: none;
+    transition: border-color 0.25s;
+  }
+  .toolbar input:focus, .toolbar select:focus { border-color: var(--accent); }
+  .toolbar input { flex: 1; min-width: 200px; }
+  .toolbar select { min-width: 120px; }
+
+  /* ====== Table ====== */
+  .table-wrap { overflow-x: auto; }
+  table {
+    width: 100%; border-collapse: collapse; font-size: 0.88rem;
+  }
+  thead th {
+    text-align: left; padding: 12px 14px; background: var(--surface);
+    color: var(--text-dim); font-weight: 600; font-size: 0.75rem;
+    text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 12px 14px; border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tbody tr { transition: background 0.2s; }
+  tbody tr:hover { background: rgba(255,255,255,0.015); }
+
+  .subj-tag {
+    display: inline-block; padding: 2px 10px; border-radius: 12px;
+    font-size: 0.75rem; font-weight: 500;
+    background: rgba(0, 212, 170, 0.1); color: var(--accent);
+  }
+  .mastered .subj-tag { background: rgba(0, 212, 170, 0.05); color: var(--text-dim); }
+  .mastered td { color: var(--text-dim); }
+  .mastered td { text-decoration: line-through; text-decoration-thickness: 1px; text-decoration-color: rgba(255,255,255,0.08); }
+  .mastered td:last-child,
+  .mastered td:nth-child(1) { text-decoration: none; }
+
+  .review-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 0.72rem; font-weight: 500;
+  }
+  .review-badge.overdue { background: rgba(255, 107, 107, 0.15); color: var(--danger); }
+  .review-badge.soon { background: rgba(255, 192, 72, 0.15); color: var(--warn); }
+  .review-badge.ok { background: rgba(0, 212, 170, 0.1); color: var(--accent); }
+
+  .actions-cell { display: flex; gap: 6px; }
+
+  /* ====== Modal ====== */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.7);
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.hidden { display: none; }
+
+  .modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 32px; width: 90%; max-width: 620px; max-height: 85vh;
+    overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal h2 { color: #fff; font-size: 1.15rem; margin-bottom: 24px; letter-spacing: 1px; }
+
+  .form-group { margin-bottom: 18px; }
+  .form-group label {
+    display: block; font-size: 0.78rem; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;
+  }
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; color: var(--text); font-size: 0.9rem; outline: none;
+    font-family: inherit; transition: border-color 0.25s; resize: vertical;
+  }
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus { border-color: var(--accent); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+  /* Modal tabs */
+  .modal-tabs { display: flex; gap: 0; margin-bottom: 24px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+  .modal-tab {
+    flex: 1; padding: 10px; text-align: center; font-size: 0.85rem; font-weight: 500;
+    background: var(--bg); color: var(--text-dim); border: none; cursor: pointer;
+    transition: all 0.25s;
+  }
+  .modal-tab + .modal-tab { border-left: 1px solid var(--border); }
+  .modal-tab:hover { color: var(--text); }
+  .modal-tab.active { background: var(--accent); color: #0a0e14; font-weight: 600; }
+
+  .quick-hint {
+    font-size: 0.78rem; color: var(--text-dim); margin-bottom: 18px;
+    padding: 10px 14px; background: rgba(0, 212, 170, 0.05); border-radius: 8px;
+    border-left: 3px solid var(--accent); line-height: 1.6;
+  }
+
+  .hidden { display: none !important; }
+
+  /* ====== Empty state ====== */
+  .empty { text-align: center; padding: 60px 20px; color: var(--text-dim); }
+  .empty .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty p { font-size: 0.9rem; }
+
+  /* ====== Footer ====== */
+  .footer {
+    text-align: center; padding: 32px 0 16px; font-size: 0.75rem;
+    color: var(--text-dim); letter-spacing: 1px;
+  }
+
+  /* ====== Quiz mode ====== */
+  .quiz-panel { margin-bottom: 28px; }
+  .quiz-header {
+    display: flex; align-items: center; gap: 16px; margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .quiz-progress-bar {
+    flex: 1; min-width: 100px; height: 6px; background: var(--border);
+    border-radius: 3px; overflow: hidden;
+  }
+  .quiz-progress-fill {
+    height: 100%; background: var(--accent); border-radius: 3px;
+    transition: width 0.35s ease;
+  }
+  .quiz-counter { font-size: 0.85rem; color: var(--text-dim); white-space: nowrap; }
+
+  .quiz-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 32px; margin-bottom: 20px;
+  }
+  .quiz-subject-tag {
+    display: inline-block; padding: 3px 12px; border-radius: 12px;
+    font-size: 0.75rem; font-weight: 500; margin-bottom: 16px;
+    background: rgba(0, 212, 170, 0.1); color: var(--accent);
+  }
+  .quiz-question-text {
+    font-size: 1.05rem; line-height: 1.9; color: #e8edf3; margin-bottom: 28px;
+    letter-spacing: 0.3px;
+  }
+  .quiz-options { display: flex; flex-direction: column; gap: 12px; }
+  .quiz-option {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 16px 20px; border: 2px solid var(--border); border-radius: 12px;
+    background: var(--bg); cursor: pointer; transition: all 0.2s;
+    text-align: left; font-size: 0.95rem; color: var(--text);
+    line-height: 1.7;
+  }
+  .quiz-option:hover:not(.revealed) { border-color: var(--accent); background: rgba(0, 212, 170, 0.04); }
+  .quiz-option .opt-letter {
+    flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.85rem;
+    background: var(--border); color: var(--text-dim);
+    transition: all 0.2s;
+  }
+  .quiz-option.revealed { cursor: default; }
+  .quiz-option.revealed.correct-choice {
+    border-color: var(--accent); background: rgba(0, 212, 170, 0.08);
+    box-shadow: 0 0 16px rgba(0, 212, 170, 0.15);
+  }
+  .quiz-option.revealed.correct-choice .opt-letter {
+    background: var(--accent); color: #0a0e14;
+  }
+  .quiz-option.revealed.wrong-choice {
+    border-color: var(--danger); background: rgba(255, 107, 107, 0.06);
+  }
+  .quiz-option.revealed.wrong-choice .opt-letter {
+    background: var(--danger); color: #fff;
+  }
+  .quiz-option.revealed.dimmed { opacity: 0.45; }
+
+  .quiz-feedback {
+    margin-top: 20px; padding: 18px 20px; border-radius: 12px;
+    font-size: 0.9rem; line-height: 1.7;
+  }
+  .quiz-feedback.correct { background: rgba(0, 212, 170, 0.08); border: 1px solid rgba(0, 212, 170, 0.25); }
+  .quiz-feedback.wrong { background: rgba(255, 107, 107, 0.06); border: 1px solid rgba(255, 107, 107, 0.2); }
+  .quiz-feedback .fb-title { font-weight: 700; font-size: 1rem; margin-bottom: 8px; }
+  .quiz-feedback.correct .fb-title { color: var(--accent); }
+  .quiz-feedback.wrong .fb-title { color: var(--danger); }
+  .quiz-feedback .fb-reason { color: var(--text-dim); margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+
+  .quiz-nav { display: flex; gap: 12px; justify-content: center; align-items: center; }
+  .quiz-nav .btn { min-width: 100px; }
+
+  .quiz-summary {
+    text-align: center; padding: 48px 24px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  }
+  .quiz-summary .score { font-size: 3.5rem; font-weight: 700; color: #fff; }
+  .quiz-summary .score.perfect { color: var(--accent); }
+  .quiz-summary .score.good { color: var(--warn); }
+  .quiz-summary .detail { color: var(--text-dim); margin: 12px 0 24px; font-size: 0.9rem; }
+
+  @media (max-width: 700px) {
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .form-row { grid-template-columns: 1fr; }
+    .topbar { flex-direction: column; align-items: flex-start; }
+    .quiz-card { padding: 20px; }
+    .quiz-question-text { font-size: 0.95rem; }
+    .quiz-option { padding: 14px 16px; font-size: 0.88rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+
+<div class="container">
+
+  <div class="topbar">
+    <h1><span class="dot"></span>错题本</h1>
+    <div class="topbar-actions">
+      <button class="btn sync-btn" onclick="toggleSyncSettings()" id="syncBtn" title="云同步">
+        <span class="sync-dot off" id="syncDot"></span>云同步
+      </button>
+      <button class="btn" onclick="exportData()">导出备份</button>
+      <label class="btn" style="cursor:pointer;">
+        导入恢复
+        <input type="file" accept=".json" onchange="importData(event)" style="display:none;">
+      </label>
+      <button class="btn" onclick="startQuiz()" id="quizModeBtn">刷题模式</button>
+      <button class="btn btn-primary" onclick="openModal()">+ 添加错题</button>
+    </div>
+  </div>
+
+  <!-- 统计卡片 -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="num" id="statTotal">0</div>
+      <div class="lbl">总错题数</div>
+    </div>
+    <div class="stat-card">
+      <div class="num accent" id="statMastered">0</div>
+      <div class="lbl">已掌握</div>
+    </div>
+    <div class="stat-card">
+      <div class="num warn" id="statUnreviewed">0</div>
+      <div class="lbl">待复习</div>
+    </div>
+    <div class="stat-card">
+      <div class="num danger" id="statOverdue">0</div>
+      <div class="lbl">逾期未复习</div>
+    </div>
+  </div>
+
+  <!-- 搜索筛选栏 -->
+  <div class="toolbar">
+    <input type="text" id="searchInput" placeholder="搜索题目、知识点…" oninput="renderTable()">
+    <select id="filterSubject" onchange="renderTable()">
+      <option value="all">全部科目</option>
+    </select>
+    <select id="filterStatus" onchange="renderTable()">
+      <option value="all">全部状态</option>
+      <option value="unmastered">未掌握</option>
+      <option value="mastered">已掌握</option>
+      <option value="overdue">逾期未复习</option>
+    </select>
+  </div>
+
+  <!-- 错题列表 -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>科目</th>
+          <th>题目</th>
+          <th>错误答案</th>
+          <th>正确答案</th>
+          <th>错误原因</th>
+          <th>复习</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div class="empty" id="emptyState" style="display:none;">
+      <div class="icon">📋</div>
+      <p>还没有错题记录</p>
+      <p style="font-size:0.8rem;">点击「添加错题」开始记录</p>
+    </div>
+  </div>
+
+  <!-- ====== 刷题模式 ====== -->
+  <div class="quiz-panel hidden" id="quizPanel">
+    <div class="quiz-header">
+      <button class="btn" onclick="exitQuiz()">← 返回列表</button>
+      <div class="quiz-progress-bar"><div class="quiz-progress-fill" id="quizProgressFill" style="width:0%"></div></div>
+      <span class="quiz-counter" id="quizCounter">1/16</span>
+    </div>
+    <div id="quizContent"></div>
+    <div class="quiz-nav" id="quizNav">
+      <button class="btn" id="quizPrevBtn" onclick="prevQuestion()" disabled>上一题</button>
+      <button class="btn btn-primary" id="quizNextBtn" onclick="nextQuestion()">下一题</button>
+    </div>
+  </div>
+
+  <div class="footer">ERROR LOG SYSTEM · 温故而知新</div>
+</div>
+
+<!-- ====== Modal ====== -->
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">添加错题</h2>
+    <input type="hidden" id="editId">
+
+    <!-- Tab switch -->
+    <div class="modal-tabs">
+      <button class="modal-tab active" onclick="switchTab('manual')">手动填写</button>
+      <button class="modal-tab" onclick="switchTab('quick')">一键录入</button>
+    </div>
+
+    <!-- 一键录入 panel -->
+    <div class="quick-panel hidden" id="quickPanel">
+      <p class="quick-hint">把整道题的文字粘贴进来，系统自动拆分填写。手机端可先用微信「提取文字」功能识别拍照内容。</p>
+      <div class="form-group">
+        <label>科目</label>
+        <select id="quickSubject">
+          <option value="">自动识别</option>
+          <option value="言语理解与表达">言语理解与表达</option>
+          <option value="数量关系">数量关系</option>
+          <option value="判断推理">判断推理</option>
+          <option value="资料分析">资料分析</option>
+          <option value="常识判断">常识判断</option>
+          <option value="申论">申论</option>
+          <option value="公共基础知识">公共基础知识</option>
+          <option value="面试">面试</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>粘贴完整题目文字</label>
+        <textarea id="quickText" rows="8" placeholder="把题目、选项、你的答案、正确答案、解析…全部粘贴进来
+例如：
+1. 下列关于GDP的说法正确的是？
+A. GDP=GNP  B. GDP包括中间产品  C. GDP按国土原则计算  D. GDP只算服务业
+我的答案：A
+正确答案：C
+解析：GDP按国土原则，GNP按国民原则"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="parseQuickText()" style="width:100%;">自动拆分 ▸</button>
+    </div>
+
+    <!-- 手动填写 panel -->
+    <div id="manualPanel">
+    <div class="form-row">
+      <div class="form-group">
+        <label>科目</label>
+        <select id="formSubject">
+          <option value="">请选择</option>
+          <option value="言语理解与表达">言语理解与表达</option>
+          <option value="数量关系">数量关系</option>
+          <option value="判断推理">判断推理</option>
+          <option value="资料分析">资料分析</option>
+          <option value="常识判断">常识判断</option>
+          <option value="申论">申论</option>
+          <option value="公共基础知识">公共基础知识</option>
+          <option value="面试">面试</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>掌握程度</label>
+        <select id="formMastered">
+          <option value="0">未掌握</option>
+          <option value="1">已掌握</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>题目</label>
+      <input type="text" id="formQuestion" placeholder="简要描述题目内容…">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label>我的错误答案</label>
+        <input type="text" id="formWrong" placeholder="你当时选的/写的答案…">
+      </div>
+      <div class="form-group">
+        <label>正确答案</label>
+        <input type="text" id="formCorrect" placeholder="标准答案…">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>错误原因分析</label>
+      <textarea id="formReason" rows="3" placeholder="为什么会错？是知识点不牢、审题不清、还是计算失误？…"></textarea>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveRecord()">保存</button>
+    </div>
+    </div><!-- end manualPanel -->
+
+  </div>
+</div>
+
+<!-- ====== Sync Settings Modal ====== -->
+<div class="modal-overlay hidden" id="syncOverlay">
+  <div class="modal" style="max-width:440px;">
+    <h2>云同步设置</h2>
+    <p style="color:var(--text-dim);font-size:0.82rem;margin-bottom:20px;line-height:1.7;">
+      使用 GitHub Gist 存储数据，手机电脑自动同步。<br>
+      1. 前往 <a href="https://github.com/settings/tokens" target="_blank" style="color:var(--accent);">GitHub Token 页面</a> 创建一个 Token，勾选 <b>gist</b> 权限<br>
+      2. 将 Token 粘贴到下方，点击「连接并同步」
+    </p>
+    <div class="form-group">
+      <label>GitHub Token</label>
+      <input type="password" id="syncToken" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <label>Gist ID <span style="color:var(--text-dim);font-weight:400;">（自动获取）</span></label>
+      <input type="text" id="syncGistId" placeholder="连接成功后自动填充" readonly>
+    </div>
+    <div id="syncMsg" style="font-size:0.8rem;margin-bottom:16px;display:none;"></div>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button class="btn btn-danger" onclick="disconnectSync()" id="disconnectBtn" style="display:none;">断开同步</button>
+      <div style="display:flex;gap:10px;">
+        <button class="btn" onclick="closeSyncSettings()">取消</button>
+        <button class="btn btn-primary" onclick="connectSync()" id="connectBtn">连接并同步</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'errorbook_data_v4';
+
+let records = [];
+let subjects = new Set();
+
+// ====== Cloud Sync (GitHub Gist) ======
+const SYNC_CFG_KEY = 'errorbook_sync_config_v1';
+let syncCfg = { token: '', gistId: '' };
+
+function loadSyncCfg() {
+  try {
+    const raw = localStorage.getItem(SYNC_CFG_KEY);
+    if (raw) syncCfg = JSON.parse(raw);
+  } catch { syncCfg = { token: '', gistId: '' }; }
+}
+
+function saveSyncCfg() {
+  try {
+    localStorage.setItem(SYNC_CFG_KEY, JSON.stringify(syncCfg));
+  } catch {}
+}
+
+function isSyncReady() {
+  return !!(syncCfg.token && syncCfg.gistId);
+}
+
+function setSyncStatus(state) {
+  const dot = document.getElementById('syncDot');
+  if (dot) {
+    dot.className = 'sync-dot ' + state;
+  }
+}
+
+function toggleSyncSettings() {
+  const overlay = document.getElementById('syncOverlay');
+  if (overlay.classList.contains('hidden')) {
+    loadSyncCfg();
+    document.getElementById('syncToken').value = syncCfg.token || '';
+    document.getElementById('syncGistId').value = syncCfg.gistId || '';
+    document.getElementById('syncMsg').style.display = 'none';
+    if (isSyncReady()) {
+      document.getElementById('connectBtn').textContent = '保存并同步';
+      document.getElementById('disconnectBtn').style.display = '';
+    } else {
+      document.getElementById('connectBtn').textContent = '连接并同步';
+      document.getElementById('disconnectBtn').style.display = 'none';
+    }
+    overlay.classList.remove('hidden');
+  } else {
+    closeSyncSettings();
+  }
+}
+
+function closeSyncSettings() {
+  document.getElementById('syncOverlay').classList.add('hidden');
+}
+
+function showSyncMsg(msg, color) {
+  const el = document.getElementById('syncMsg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  el.style.color = color || 'var(--text-dim)';
+}
+
+async function connectSync() {
+  const token = document.getElementById('syncToken').value.trim();
+  if (!token) { showSyncMsg('请输入 GitHub Token', 'var(--danger)'); return; }
+  showSyncMsg('正在验证连接…', 'var(--warn)');
+  setSyncStatus('syncing');
+
+  try {
+    // Test token by fetching user info
+    const userResp = await fetch('https://api.github.com/user', {
+      headers: { Authorization: `token ${token}` }
+    });
+    if (!userResp.ok) {
+      showSyncMsg('Token 无效，请检查后重试', 'var(--danger)');
+      setSyncStatus('error');
+      return;
+    }
+    const user = await userResp.json();
+
+    // If no gist ID, try to find existing one or create new
+    let gistId = document.getElementById('syncGistId').value.trim() || syncCfg.gistId;
+
+    if (gistId) {
+      // Test existing gist
+      const testResp = await fetch(`https://api.github.com/gists/${gistId}`, {
+        headers: { Authorization: `token ${token}` }
+      });
+      if (!testResp.ok) gistId = '';
+    }
+
+    if (!gistId) {
+      // Try to auto-discover existing Gist (for second device)
+      showSyncMsg('正在查找已有同步数据…', 'var(--warn)');
+      const listResp = await fetch('https://api.github.com/gists?per_page=100', {
+        headers: { Authorization: `token ${token}` }
+      });
+      if (listResp.ok) {
+        const gists = await listResp.json();
+        for (const g of gists) {
+          if (g.description === '错题本数据 · 云同步' &&
+              g.files && g.files['errorbook.json']) {
+            gistId = g.id;
+            break;
+          }
+        }
+      }
+
+      if (!gistId) {
+        // Create new gist (first device setup)
+        const createResp = await fetch('https://api.github.com/gists', {
+          method: 'POST',
+          headers: {
+            Authorization: `token ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            description: '错题本数据 · 云同步',
+            public: false,
+            files: {
+              'errorbook.json': { content: JSON.stringify(records.length > 0 ? records : getDefaultData(), null, 2) }
+            }
+          })
+        });
+        if (!createResp.ok) {
+          const err = await createResp.json();
+          showSyncMsg('创建 Gist 失败: ' + (err.message || createResp.status), 'var(--danger)');
+          setSyncStatus('error');
+          return;
+        }
+        const gist = await createResp.json();
+        gistId = gist.id;
+      }
+    }
+
+    const isNewGist = !syncCfg.gistId; // newly created vs auto-discovered
+
+    // Save config
+    syncCfg = { token, gistId };
+    saveSyncCfg();
+    document.getElementById('syncGistId').value = gistId;
+    document.getElementById('connectBtn').textContent = '保存并同步';
+    document.getElementById('disconnectBtn').style.display = '';
+    setSyncStatus('on');
+    showSyncMsg(`已连接 · GitHub: ${user.login} · 数据已同步`, 'var(--accent)');
+
+    if (isNewGist) {
+      // First device: push local data to new gist
+      await pushToGist();
+    } else {
+      // Second device: pull cloud data first, then push to merge
+      await pullAndMerge();
+    }
+  } catch(e) {
+    showSyncMsg('网络错误，请检查网络后重试', 'var(--danger)');
+    setSyncStatus('error');
+  }
+}
+
+function disconnectSync() {
+  if (!confirm('断开云同步？本地数据不会丢失。')) return;
+  syncCfg = { token: '', gistId: '' };
+  saveSyncCfg();
+  document.getElementById('syncToken').value = '';
+  document.getElementById('syncGistId').value = '';
+  document.getElementById('connectBtn').textContent = '连接并同步';
+  document.getElementById('disconnectBtn').style.display = 'none';
+  document.getElementById('syncMsg').style.display = 'none';
+  setSyncStatus('off');
+}
+
+async function pushToGist() {
+  if (!isSyncReady()) return false;
+  try {
+    setSyncStatus('syncing');
+    const resp = await fetch(`https://api.github.com/gists/${syncCfg.gistId}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `token ${syncCfg.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        files: { 'errorbook.json': { content: JSON.stringify(records, null, 2) } }
+      })
+    });
+    if (resp.ok) {
+      setSyncStatus('on');
+      return true;
+    }
+    setSyncStatus('error');
+    return false;
+  } catch {
+    setSyncStatus('error');
+    return false;
+  }
+}
+
+async function pullFromGist() {
+  if (!isSyncReady()) return null;
+  try {
+    setSyncStatus('syncing');
+    const resp = await fetch(`https://api.github.com/gists/${syncCfg.gistId}`, {
+      headers: { Authorization: `token ${syncCfg.token}` }
+    });
+    if (!resp.ok) { setSyncStatus('error'); return null; }
+    const gist = await resp.json();
+    const file = gist.files['errorbook.json'];
+    if (!file || !file.content) { setSyncStatus('on'); return null; }
+    const data = JSON.parse(file.content);
+    if (!Array.isArray(data)) { setSyncStatus('error'); return null; }
+    setSyncStatus('on');
+    return data;
+  } catch {
+    setSyncStatus('error');
+    return null;
+  }
+}
+
+async function pullAndMerge() {
+  const gistData = await pullFromGist();
+  if (gistData && gistData.length > 0) {
+    // Merge: Gist is source of truth, but preserve local data that doesn't exist in Gist
+    const gistIds = new Set(gistData.map(r => r.id));
+    const localOnly = records.filter(r => !gistIds.has(r.id));
+    records = [...gistData, ...localOnly];
+    try { save(); } catch {}
+    renderAll();
+  } else if (gistData && gistData.length === 0 && records.length > 0) {
+    // Gist is empty but local has data, push local
+    await pushToGist();
+  }
+}
+
+// Sync settings modal click-outside close
+document.addEventListener('DOMContentLoaded', function() {
+  const syncOverlay = document.getElementById('syncOverlay');
+  if (syncOverlay) {
+    syncOverlay.addEventListener('click', function(e) {
+      if (e.target === this) closeSyncSettings();
+    });
+  }
+});
+
+function getDefaultData() {
+  return JSON.parse(String.raw`[{"id":"q01","subject":"言语理解与表达","question":"【2025国考】当前，改革发展任务繁重，需要各级各部门和广大干部高质高效地完成各项任务，才能在日趋激烈的发展竞争中赢得____。而处理日常纷繁复杂的工作，就如同“十个指头弹钢琴”，需要合理分配力量和节奏。一味强求自加压力，势必使某个或多个指头的力量受到影响，导致工作____，工作效能不理想也就在意料之中了。","options":["A. 认可  手忙脚乱","B. 先机  拖泥带水","C. 主动  左支右绌","D. 优势  进退维谷"],"correctIndex":2,"wrongAnswer":"","correctAnswer":"C. 主动 / 左支右绌","reason":"第一空：竞争语境需体现“占优”→“主动”最贴切。第二空：“十个指头弹钢琴”比喻要合理分配力量，自加压力会导致顾此失彼→“左支右绌”最准确。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q02","subject":"言语理解与表达","question":"【2025国考】冠心病、心肌梗塞、脑梗塞、下肢坏死……糖尿病带来的并发症令人痛苦不堪，更麻烦的是，它还会____认知障碍，例如轻度认知损伤和阿尔茨海默病。有研究显示，近十几年来，在死亡的糖尿病患者中，患有认知障碍的____越来越大。因此，亟须找到引发糖尿病患者认知障碍的____。","options":["A. 激发  比值  元凶巨恶","B. 导致  比例  幕后黑手","C. 诱发  比重  罪魁祸首","D. 招致  比率  始作俑者"],"correctIndex":2,"wrongAnswer":"","correctAnswer":"C. 诱发 / 比重 / 罪魁祸首","reason":"第一空：“认知障碍”为疾病，搭配“诱发”最准确。第二空：占比→“比重”。第三空：“因此”表因果，需找主要原因→“罪魁祸首”最贴切；“始作俑者”指第一个做坏事的人，不适合疾病语境。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q03","subject":"言语理解与表达","question":"【2025浙江】我国长期重视生猪产业发展，农业农村部先后制定多项有____、针对性的政策，并依据生产规律及市场波动，立足中长期规划持续展开跨周期调控。只有用地、环评、金融等长效性政策相继落实，监测预警与形势研判得到加强，才能有效避免生产和价格出现____，避免损害养猪场户基础生产能力，确保产业健康发展。","options":["A. 全局性  一波三折","B. 战略性  起伏不定","C. 前瞻性  大起大落","D. 时代性  一泻千里"],"correctIndex":2,"wrongAnswer":"","correctAnswer":"C. 前瞻性 / 大起大落","reason":"第一空：与“针对性”并列，后文“立足中长期规划”→“前瞻性”体现着眼长远。第二空：生猪产业需规避的价格剧烈波动→“大起大落”精准描述猪周期典型特征。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q04","subject":"言语理解与表达","question":"【2025国考】“南橘北枳”是____的自然规律。一些植物美则美矣，但只能生活在特定的自然环境中。某些地区不顾本地条件，只想迅速复制网红景观，画虎不成反类犬。一个地区的山水林田湖草是生命共同体，人为“改弦更张”，可能破坏生态平衡，到头来____。","options":["A. 颠扑不破  得不偿失","B. 显而易见  后患无穷","C. 众所周知  一无所有","D. 毋庸置疑  贻笑大方"],"correctIndex":0,"wrongAnswer":"","correctAnswer":"A. 颠扑不破 / 得不偿失","reason":"第一空：修饰“自然规律”，需体现规律确定、不可更改→“颠扑不破”比喻理论牢固经得起检验。第二空：人为破坏生态付出代价却得不到好处→“得不偿失”最贴切。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q05","subject":"言语理解与表达","question":"【2023国考】透光摄影、多光谱成像、三维病害模型……这些听起来更像是医疗或化工业的技术，如今在文物修复圈成为____的“神器”。正是这些现代科技手段对文物的“问诊”与“体检”，弥补了用肉眼无法看到、用手无法摸到“病情”的缺陷，从而使修复人员可以“____”。","options":["A. 崭露头角  药到病除","B. 交口称赞  妙手回春","C. 举足轻重  有的放矢","D. 必不可少  对症下药"],"correctIndex":3,"wrongAnswer":"","correctAnswer":"D. 必不可少 / 对症下药","reason":"第二空是突破口：文段将文物修复比喻为“治病”，“问诊”“体检”后自然是对症治疗→“对症下药”完美呼应医疗比喻。第一空验证：“必不可少”强调现代科技对文物修复的绝对必要性。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q06","subject":"言语理解与表达","question":"【2024联考】一些品牌随意挑选某个古代物件图样印在服饰上，再染上年画风格的配色，就为自己打出国潮的____。其实，这根本算不上真正意义的国潮，国潮不是简单的文化包装，而是传统文化与现代审美的深度____。","options":["A. 名头  交汇","B. 标签  结合","C. 标记  融汇","D. 噱头  融合"],"correctIndex":3,"wrongAnswer":"","correctAnswer":"D. 噱头 / 融合","reason":"第一空：后文“根本算不上真正意义的国潮”表明消极倾向→优选贬义词“噱头”。第二空：传统文化与现代审美的深度“融合”。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q07","subject":"言语理解与表达","question":"【2025联考】在实现第二个百年奋斗目标的新征程上，我们既拥有了强大的思想伟力、显著的制度优势、积累了____的物质基础、建立了____的产业体系和超大规模的国内市场，又面临着诸多风险挑战，甚至可能遇到难以想象的惊涛骇浪般的____考验。","options":["A. 雄厚  完备  严峻","B. 丰厚  完善  巨大","C. 厚实  完美  严酷","D. 浑厚  完整  重大"],"correctIndex":0,"wrongAnswer":"","correctAnswer":"A. 雄厚 / 完备 / 严峻","reason":"第一空：“雄厚”是“物质基础”的固定搭配。第二空：“完备”指应该有的全都有了。第三空：“严峻考验”是固定搭配。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q08","subject":"言语理解与表达","question":"【2025国考】改进文风就要多写“短实新”的好文章。“实”就是讲符合实际的话不讲脱离实际的话，讲管用的话不讲空话，讲反映自己思考的话不讲____的话，讲有感而发的话不讲____的话，讲通俗明白的话不讲故作高深的话，____，用朴实的语言阐述深刻的理论。","options":["A. 故弄玄虚  装腔作势  由表及里","B. 人云亦云  言不由衷  举一反三","C. 照本宣科  无病呻吟  深入浅出","D. 陈词滥调  冠冕堂皇  言简意赅"],"correctIndex":2,"wrongAnswer":"","correctAnswer":"C. 照本宣科 / 无病呻吟 / 深入浅出","reason":"第一空：与“反映自己思考”反义并列→“照本宣科”。第二空：与“有感而发”反义→“无病呻吟”。第三空：“用朴实语言阐述深刻理论”→“深入浅出”。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q09","subject":"言语理解与表达","question":"【2023吉林】红色，是强军文化最鲜亮的底色。展开历史画卷，红色基因犹如一条红线____历史，孕育了我党我军特有的忠诚品质、胜战精神、优良作风。善于传承才能更好创新，因此应站在红色江山永不变色、党的事业____的高度，与优良传统对接，汲取信仰力量，深入实施“红色基因代代传”工程，让强军文化在红色____上生发新枝叶。","options":["A. 标记  继往开来  基因","B. 穿越  承上启下  底蕴","C. 纵贯  薪火相传  根脉","D. 联通  大展宏图  土壤"],"correctIndex":2,"wrongAnswer":"","correctAnswer":"C. 纵贯 / 薪火相传 / 根脉","reason":"比喻链贯穿全文：红色基因→红线→“纵贯”历史→“根脉”→生发新“枝叶”，构成完整的植物生长隐喻。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q10","subject":"言语理解与表达","question":"【2025国考】再严明的纪律，不执行、不遵守、不维护，也是____。从一些违反党纪党规的言行看，有不认真学习造成的情况，更有____的情况。有的把政治规矩置于脑后，把党的纪律要求____，毫无自我约束。纪律不是可松可紧的橡皮筋，不是可有可无的空摆设。","options":["A. 事与愿违  敷衍了事  视而不见","B. 徒劳无功  混淆是非  本末倒置","C. 一纸空文  明知故犯  束之高阁","D. 虚有其表  有恃无恐  弃如敝屣"],"correctIndex":2,"wrongAnswer":"","correctAnswer":"C. 一纸空文 / 明知故犯 / 束之高阁","reason":"第一空：后文“空摆设”暗示纪律不落实形同虚设→“一纸空文”。第二空：“更”表递进→“明知故犯”。第三空：与“置于脑后”并列→“束之高阁”。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q11","subject":"言语理解与表达","question":"【2024辽宁/黑龙江】博物馆讲解，不是不能有“戏说”的成分，而是要在“戏说”的时候“事先告知”，在讲解正史之后可以告诉大家“还有一个民间的传说”，把民间传说讲解一下也未尝不可。但是绝不能“把戏说当正史”，故意____历史和传说，甚至添油加醋自己____。","options":["A. 歪曲  伪造","B. 模糊  发挥","C. 颠倒  篡改","D. 混淆  杜撰"],"correctIndex":3,"wrongAnswer":"","correctAnswer":"D. 混淆 / 杜撰","reason":"第一空：“把戏说当正史”→把不同性质的东西混在一起→“混淆”最贴切。第二空：“甚至”表递进，“添油加醋”提示凭空编造→“杜撰”最准确。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q12","subject":"言语理解与表达","question":"【2025浙江】复盘一些网暴事件不难发现，绝大多数攻击都是基于一种道德判断，尽管这种道德判断是盲目的、偏激的，但施暴者却____，将这种道德判断强加在受害者身上。面对网暴，任何试图摆事实、讲道理的努力都____，反倒是为他们提供了更多“情绪劳动”的线索和资源。","options":["A. 自欺欺人  徒劳无功","B. 自以为是  无济于事","C. 不以为然  百无一用","D. 不辨真伪  于事无补"],"correctIndex":1,"wrongAnswer":"","correctAnswer":"B. 自以为是 / 无济于事","reason":"第一空：“但”表转折，施暴者未意识到自己判断有问题→“自以为是”。“不以为然”与文意相反。第二空：摆事实不仅无效反被利用→“无济于事”。正确率仅55.4%。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q13","subject":"言语理解与表达","question":"【2022四川联考】随着现代社会的发展，快餐文化开始____并且不可避免地影响着校园。以快餐阅读为例，时间和精力没少花，却可能收获寥寥。要想真正从阅读中有所收获，传统阅读仍是上选：就阅读效果而言，二者不能____。","options":["A. 风靡一时  混为一谈","B. 蔚然成风  等量齐观","C. 大行其道  相提并论","D. 大张旗鼓  一概而论"],"correctIndex":2,"wrongAnswer":"","correctAnswer":"C. 大行其道 / 相提并论","reason":"第一空：“快餐文化”带消极色彩→“大行其道”多含贬义。“蔚然成风”为褒义词。第二空：传统与快餐式阅读效果无法比较→“相提并论”最准确。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q14","subject":"言语理解与表达","question":"【2024山东】稳步推进个人所得税改革，____收入分配秩序，提高居民收入水平和消费购买力。近年来，我国个人所得税改革____，通过提高基本减除费用标准、设立专项附加扣除、优化调整税率结构等一系列组合拳，上亿自然人纳税人税收负担明显减轻。","options":["A. 规范  蹄疾步稳","B. 强化  循序渐进","C. 调整  筚路蓝缕","D. 完善  披荆斩棘"],"correctIndex":0,"wrongAnswer":"","correctAnswer":"A. 规范 / 蹄疾步稳","reason":"第一空：“规范”与“收入分配秩序”为常见搭配。第二空：“稳步推进”+“负担明显减轻”→“蹄疾步稳”（又快又稳）。“筚路蓝缕”形容创业艰苦，不符。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q15","subject":"言语理解与表达","question":"【2024浙江】科技合作是构建更加开放、包容、普惠、平衡、共赢的经济全球化的____。全球化和开放型经济是过去几十年人类进步的两个关键因素。当世界正朝着以知识为基础的经济跃进，对中国采取科技____打压正在损害知识的产生和创新，与增进人类科技进步与共同福祉____。","options":["A. 成功之道  封锁  适得其反","B. 必然之果  束缚  殊途同归","C. 应有之义  遏制  背道而驰","D. 必由之路  围猎  南辕北辙"],"correctIndex":2,"wrongAnswer":"","correctAnswer":"C. 应有之义 / 遏制 / 背道而驰","reason":"第一空：科技合作是经济全球化的内在要求→“应有之义”。第二空：“科技遏制打压”为官方常用表述。第三空：科技打压与增进福祉方向完全背离→“背道而驰”。正确率仅60.5%。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q16","subject":"言语理解与表达","question":"【2025国考】电动垂直起降航空器是低空飞行器的一种，无人驾驶，无需传统机场和跑道，像直升机一样垂直起飞，使用纯电动力……2023年中央经济工作会议指出，打造生物制造、商业航天、低空经济等若干战略性新兴产业。低空经济产业链条长、应用场景丰富……这段文字接下来最可能讲的是：","options":["A. 低空飞行器的动力模式分类","B. 电动垂直起降航空器的推广难点","C. 低空飞行器相对于传统交通工具的优势","D. 政府对发展低空经济提供的支持和保障"],"correctIndex":3,"wrongAnswer":"","correctAnswer":"D. 政府对发展低空经济提供的支持和保障","reason":"接语选择题关键看话题落脚点。文段先介绍eVTOL定义，后大篇幅论述“低空经济”的产业链优势和巨大经济贡献。话题落脚点是“低空经济”，接下来应围绕“低空经济”展开。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q17","subject":"言语理解与表达","question":"【2025四川】古风经济的兴起，显性的表现之一就是穿古代服装，但古风经济应更好地融入当代社会。古风经济不仅仅是穿古装，它从本质上是一种对传统文化的传承和复兴，背后更多的是传统文化自信。服装加身却缺乏文化内涵，只能是孤芳自赏，浅尝辄止。弘扬优秀传统文化不仅需要外在形式，________。诗词歌赋创作、传统民俗体验、亲子互动活动……更多种类的体验、更深层次的延展，才能使古风经济发展更长久，让历史悠久的中华优秀传统文化焕发新生机。","options":["A. 更需要具有广泛外延","B. 更需要发掘精神内核","C. 还要向沉浸式旅游进阶","D. 也应承担传承文化的责任"],"correctIndex":1,"wrongAnswer":"","correctAnswer":"B. 更需要发掘精神内核","reason":"前文\"服装加身却缺乏文化内涵\"强调外在形式与内在文化的对比，后文\"更深层次的延展\"呼应\"精神内核\"，构成\"不仅需要外在形式，更需要发掘精神内核\"的递进关系。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q18","subject":"言语理解与表达","question":"【2024辽宁】①1979年，波斯波利斯被列入联合国教科文组织世界文化遗产名录\n②波斯波利斯始建于公元前约518年，主要建筑包括万国门、觐见厅、百柱宫、阿帕达纳宫、薛西斯宫殿、书房、金库等，整个宫殿建筑群历经3个朝代才得以完成\n③去伊朗一定要看波斯波利斯古城遗址\n④联合国教科文组织评价说，波斯波利斯古城遗址提供了许多关于古代波斯文明的珍贵资料，具有重要考古价值\n⑤这座显赫一时、规模宏大的王城后来在马其顿王亚历山大东征时被烧毁\n⑥虽遭焚毁，又历经千年风雨侵蚀，但如今依然高柱林立、巨石横卧\n将以上6个句子重新排列，语序正确的是：","options":["A. ②③⑤①④⑥","B. ③②⑤⑥①④","C. ③①②④⑤⑥","D. ②①④⑤⑥③"],"correctIndex":1,"wrongAnswer":"","correctAnswer":"B. ③②⑤⑥①④","reason":"③提出话题（去伊朗要看波斯波利斯）适合首句；②紧接着介绍波斯波利斯的建造背景；⑤⑥按时间顺序：建造→烧毁→遗址现状；①④讲列入遗产名录和评价。③②⑤⑥①④逻辑最通顺。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q19","subject":"言语理解与表达","question":"【2024浙江】①由此，他们能够证明颜色来自玻璃内部形成的颗粒，而颜色取决于颗粒的大小\n②物理学家使用彩色玻璃来过滤特殊波长的光，为了优化他们的实验，他们开始自己制造玻璃，这带来了重要的发现：单一物质可以产生完全不同颜色的玻璃\n③在19世纪和20世纪，当物理学家开始研究光的光学特性时，玻璃工匠的知识被利用起来\n④最古老的彩色玻璃的考古发现可以追溯到几千年前\n⑤玻璃工匠通过试验逐渐理解了如何制作出七彩缤纷的玻璃，他们添加了银、金和镉等物质，并尝试用不同的温度来制造出色度不同的美丽玻璃\n⑥例如，硒化镉和硫化镉的混合物可以使玻璃变成黄色或红色，具体取决于玻璃的熔化温度和冷却方式\n将以上6个句子重新排列，语序正确的是：","options":["A. ③②①④⑥⑤","B. ⑤④③⑥②①","C. ②④③⑤⑥①","D. ④⑤③②⑥①"],"correctIndex":3,"wrongAnswer":"","correctAnswer":"D. ④⑤③②⑥①","reason":"④介绍最早的彩色玻璃考古发现，适合首句；⑤承接介绍玻璃工匠的试验；③转向19-20世纪物理学家利用这些知识；②⑥物理学家的发现与举例；①总结原理。④⑤③②⑥①按时间（古代→近代）和逻辑递进。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q20","subject":"言语理解与表达","question":"【2025国考】足够的执法权限是基层治理高效运行的必要条件。权限不足，可能导致基层执法需求与实际权力配置之间存在较大张力，让基层治理陷入\"看得见的管不着\"的低效治理困境；但权限如果过度下放，又可能出现\"接不住、管不好\"的现象。因此，一方面需要进一步完善执法目录动态调整机制和制度，确保执法职能精准划转、行政职权科学配置；另一方面需要加快完善基层执法事项基准库，建立基层执法事项指导目录，确保执法事项在基层供需精准对接、有效贯通执行、全面落实落细。\n这段文字意在强调，基层治理应：","options":["A. 重视\"基层执法\"，提升基层执法服务效果","B. 围绕\"精准赋权\"，科学动态调整执法权属","C. 加快\"权限下放\"，精准对接基层执法需求","D. 调整\"执法目录\"，落实落细基层执法事项"],"correctIndex":1,"wrongAnswer":"","correctAnswer":"B. 围绕\"精准赋权\"，科学动态调整执法权属","reason":"文段先指出权限不足和过度下放的问题，再提出两方面对策：动态调整执法目录+建立执法事项基准库。核心是\"精准赋权\"而非简单的\"权限下放\"。B项\"科学动态调整执法权属\"最全面概括。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q21","subject":"言语理解与表达","question":"【2023江苏】我国具有\"多元一体\"的语言文字体系。在此体系中，国家通用语言文字发挥基础和导向作用，其优先地位受到宪法和法律的保障；其他类型的语言文字起到辅助作用，仅处于从属地位，旨在为部分公民提供更为便捷的诉讼、仲裁和文化等公共服务，但其适用范围却受到限制。因而，\"全国通用\"不仅是个描述性概念，也具有规范性效力，即国家要采取各种措施保障国家通用语言文字在全国范围内（包括民族自治地方和少数民族聚居地方）通行适用。\n这段文字重在说明：","options":["A. 国家通用语言文字的应用范围","B. 国家通用语言文字的法律地位","C. 国家通用语言文字的学术概念","D. 国家通用语言文字的适用保障"],"correctIndex":3,"wrongAnswer":"","correctAnswer":"D. 国家通用语言文字的适用保障","reason":"\"因而\"引导结论：\"全国通用\"具有规范性效力→国家要采取各种措施保障其在全国范围内通行适用。落脚点在\"适用保障\"，D项最贴合结论。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q22","subject":"言语理解与表达","question":"【2024国考】村落形成是优胜劣汰、自我生长的过程。我们现在看到的村落，是经过历史\"折叠\"后的结果，当下呈现的只是其中一个切面。村落里的大部分遗留物中，隐藏着不同历史阶段的痕迹，想要看清楚，需要将\"折叠\"展开，按照各种痕迹进行重新整理和立体化呈现。所谓\"没有特色、没有传统的村落\"，其实是因为信息残缺较为严重，但其中的历史印记不会完全消失。要发现这些信息，必须通过长时间的田野调查，与原住民进行深入交流，感受他们对艺术的认知与理解，找到他们能接受、认为美的形式，这才是艺术乡建最重要的切入点。\n作者通过这段文字想说的是：","options":["A. 村落中的历史文化信息亟待发掘整理","B. 艺术乡建应以复原村落特色为着力点","C. 发现历史细节是振兴传统村落的基础","D. 扎实的田野调查对艺术乡建至关重要"],"correctIndex":3,"wrongAnswer":"","correctAnswer":"D. 扎实的田野调查对艺术乡建至关重要","reason":"尾句\"这才是艺术乡建最重要的切入点\"中的\"这\"指代前文\"长时间的田野调查+与原住民深入交流\"，直接锁定D项。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q23","subject":"言语理解与表达","question":"【2023福建】互联网时代是人机交互的时代，视觉、听觉、触觉在接入互联网的过程中尤为重要，而老年人多感官的衰老都为\"触网困难\"埋下了伏笔。同时，任何一款新功能、任何一次灵活的界面转换都可能会造成他们在互联网中的\"迷失\"，成为阻拦他们\"入网\"的道道关卡。此外，软件更新频繁、无意中跳转到新页面、关不掉各类弹出式信息这三类情况均给不少老年人带来了\"触网\"难题。\n这段文字意在说明：","options":["A. 数字时代如何助力老年人\"老有所安\"","B. 入网障碍引发了老年人抵触入网心理","C. 互联网时代老年人上网面临多重困难","D. 互联网的适老化改造仍存在探索空间"],"correctIndex":2,"wrongAnswer":"","correctAnswer":"C. 互联网时代老年人上网面临多重困难","reason":"并列结构：感官衰老+界面复杂+软件更新频繁→三个层次论述老年人的上网困难。C项\"多重困难\"最全面概括，\"同时\"\"此外\"引导并列。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q24","subject":"言语理解与表达","question":"【2024天津】目前我国氢能应用占比最大的领域是工业领域。氢能与建筑融合，是近年兴起的一种绿色建筑新理念，在电力领域，氢能可成为一种新型的储能形式。从清洁低碳角度看，氢能可以在钢铁、化工、公路运输、航运和航空等难以深度脱碳的行业领域发挥重要作用。从安全高效角度看，氢能可以促进更高份额的可再生能源发展。此外，氢能与电能作为能源枢纽，更容易耦合热能、冷能、燃料等多种能源，共同建立互联互通的现代能源网络，形成极具韧性的能源供应体系。\n这段文字意在说明：","options":["A. 氢能产业发展有所突破","B. 氢能产业链涉及多种技术和行业领域","C. 氢能的应用正在引发深刻的能源变革","D. 氢能作为一种替代能源进入人们的视野"],"correctIndex":2,"wrongAnswer":"","correctAnswer":"C. 氢能的应用正在引发深刻的能源变革","reason":"文段从工业、建筑、电力、钢铁化工、交通等多个维度介绍氢能应用，最后总结\"建立互联互通的现代能源网络形成极具韧性的能源供应体系\"。C项\"深刻能源变革\"最全面。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q25","subject":"言语理解与表达","question":"【2024联考】社会心理学先驱所罗门·阿希通过一系列著名的阿希从众实验证明，即使是判断\"三段线段谁最长\"这样的简单任务，人们的回答也会受到他人的强烈影响，进而在并无胁迫的情况下服从某种群体规范。人们为什么会服从规范？这可能源于群体中的个人害怕被其他成员视为\"一匹离群之马（越轨者）\"而遭到孤立。人的这种顺从行为在动物身上也有所体现。比较心理学家本内特·加利夫的研究发现，挪威大鼠会忽视自己的偏好转而选择同伴偏爱的食物味道，尽管有时这种味道并不怎么好。\n这段话所要表达的中心思想是：","options":["A. 人的行为活动容易受到他人的影响","B. 离群之马都会遭到社会群体的孤立","C. 人们在无胁迫下往往会服从群体规范","D. 挪威大鼠会忽视自己偏好而选择顺从"],"correctIndex":2,"wrongAnswer":"","correctAnswer":"C. 人们在无胁迫下往往会服从群体规范","reason":"阿希实验的核心结论是\"在并无胁迫的情况下服从群体规范\"。人类实验→原因分析→动物类比，三者都围绕\"无胁迫服从规范\"。C项精准概括。A项范围过宽。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q26","subject":"言语理解与表达","question":"【2024国考】在数字经济时代，因为用工关系的多样化、灵活化、去组织化、去劳动关系化等特征，市场配置劳动力资源的一面更加凸显，就更需要回到市场经济的一般法律体系，从数字经济协同治理的角度考虑新就业形态劳动者权益保护的问题。劳动法的制度和思路处于兜底保障的位置，是一种末端解决问题的思路；其他市场经济的法律处于优化产业和市场秩序的位置，是一种前端解决问题的思路。源头治理与兜底保障相结合，才能更好实现产业有序发展与新就业形态劳动者权益维护的平衡。\n这段文字意在说明：","options":["A. 劳动法与市场经济的其他法律是相辅相成的","B. 新就业形态下劳动者权益维护思路亟待更新","C. 数字经济时代劳动保障需加强法律体系协同","D. 维护劳动者权益才能更好促进数字经济发展"],"correctIndex":2,"wrongAnswer":"","correctAnswer":"C. 数字经济时代劳动保障需加强法律体系协同","reason":"尾句\"源头治理与兜底保障相结合\"强调劳动法与其他法律的协同配合。C项\"法律体系协同\"最准确。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q27","subject":"言语理解与表达","question":"【2024国考】现实生活中的案件事实总是相当复杂，很多时候国家机关一时难以查明案件真相。即使案件事实清楚，如果其性质处于一般违法行为与犯罪行为的临界线上，在法律适用层面仍是刑法理论与司法实践的难点。行政执法人员与刑事追诉人员对相关法律的理解可能也会存在一定差异。在这些因素的影响下，\"行刑衔接\"不再是单纯的由行政执法到刑事司法的衔接，也可能是由刑到行再到刑、由刑到行刑再到刑的衔接。正因为如此，有的法律明文规定了多环节的移送。\n这段文字意在：","options":["A. 解释\"行刑衔接\"中出现多环节衔接的原因","B. 剖析目前\"行刑衔接\"导致的多重复杂状况","C. 强调区分一般违法行为与犯罪行为的必要性","D. 探讨实践中影响行政执法与刑事司法的因素"],"correctIndex":0,"wrongAnswer":"","correctAnswer":"A. 解释\"行刑衔接\"中出现多环节衔接的原因","reason":"尾句\"正因为如此\"表因果，前文列举原因（案件复杂、临界状态、理解差异），后文给出结论（多环节移送）。A项\"解释原因\"最准确。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q28","subject":"言语理解与表达","question":"【2024国考】非洲企鹅成年后身高只有60至70厘米，不过嗓门可不小，时常发出浑厚而响亮的叫声，被戏称为\"公驴企鹅\"。非洲企鹅主要栖息于南非好望角附近的西蒙镇，这里属于地中海气候，全年温和舒适，同时本格拉寒流带来了南极的冰冷海水，上升补偿流还将海底营养物质带至海面，让这里形成了有利于渔业的自然环境，沙丁鱼、凤尾鱼等浅水鱼类为非洲企鹅提供了充足的营养。另外，非洲企鹅好像涂了粉红色的\"眼影\"，那是用来调节体温的腺体。当体温上升时，有更多血液流经眼睛上方的腺体，利用空气流动帮助身体降温。\"眼影\"的颜色也会更加鲜艳。\n根据这段文字可知，非洲企鹅：","options":["A. 以深水鱼类等为食物来源","B. 眼部颜色浅说明其体温较低","C. 用\"驴叫声\"来警示敌人","D. 适宜在地中海地区生存繁衍"],"correctIndex":1,"wrongAnswer":"","correctAnswer":"B. 眼部颜色浅说明其体温较低","reason":"尾句明确\"当体温上升时…眼影颜色也会更加鲜艳\"，反向推理：颜色浅→体温较低。A项与\"浅水鱼类\"相反；C项无中生有；D项混淆\"地中海气候\"与\"地中海地区\"。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q29","subject":"言语理解与表达","question":"【2023辽宁】晋侯鸟尊是中国历史文化的经典名片，它的尾巴为什么是个象鼻？是做什么用的？主人是谁？在今天还有什么价值？现在，我们开展一场跨越时空的展览。此次展览分为四个单元：第一单元\"一梦三千年\"讲述了在地下沉睡3000年的晋侯鸟尊被发现、发掘到修复完整的故事；第二单元\"故国梦重归\"用类似破案的方式，展示考古学家根据出土文物和痕迹，结合文献资料一步步推理出晋侯鸟尊的主人是第一代晋侯燮父；第三单元\"百鸟共朝凤\"主要探讨鸟尊的功能、造型以及鸟型文物的文化内涵；第四单元\"引吭歌新曲\"讲述文博部门围绕晋侯鸟尊所开展的教育、文创、研究等工作。\n这段文字出自一个展览的前言，这个展览的主题最可能是：","options":["A. 且听凤鸣——鸟尊的前世今生","B. 追根溯源——跨越时空的对话","C. 守护经典——文化基因的传承","D. 革故鼎新——鸟尊的文创开发"],"correctIndex":0,"wrongAnswer":"","correctAnswer":"A. 且听凤鸣——鸟尊的前世今生","reason":"四个单元结构清晰：发现修复（前世）→主人推理→功能文化→教育文创（今生）。\"前世今生\"完美概括展览内容。\"凤鸣\"与\"鸟尊\"、晋侯（晋为周诸侯国，凤鸟纹饰）呼应。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q30","subject":"言语理解与表达","question":"【2023国考】我国在改革开放后逐渐认识到保护民间文学艺术作品的重要性，并在1990年著作权法中规定保护办法另行规定。但时隔三十余年，保护办法仍未出台。尽管如此，在著作权法颁布后，学界就民间文学艺术作品法律保护展开研究讨论，提出多种保护方案，涉及权利客体、权利主体、权利内容、保护期限、权利限制等方面的问题。当然，也有个别学者反对用著作权法保护民间文学艺术作品，主张通过公法加以保护。与此同时，国家版权局也加快推进相关立法，但因质疑声音过大而夭折。\n作者可能赞同下列哪一观点？","options":["A. 通过公法保护民间文学艺术作品是最可行的路径","B. 围绕民间文学艺术作品法律保护的争议流于表面","C. 国家版权局应就民间文学保护倾听多方面意见","D. 民间文学艺术作品法律保护缺位状态亟须改变"],"correctIndex":3,"wrongAnswer":"","correctAnswer":"D. 民间文学艺术作品法律保护缺位状态亟须改变","reason":"开篇\"但时隔三十余年保护办法仍未出台\"表达遗憾忧虑，尾句\"因质疑声音过大而夭折\"进一步强化保护缺位的忧虑。D项\"亟须改变\"符合作者倾向。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q31","subject":"言语理解与表达","question":"【2024联考】据介绍，光学产品的装配和调试，直接影响成像效果。高精密复杂光学系统对性能有严苛的要求，不仅要实现狭小空间内超精密光学镜片的精密装调，还需________光学系统的稳定性。高精密复杂光学系统的装配和调试，往往靠经验丰富的匠人________精密仪器完成，存在装调难度大、周期长、制造加工一致性差等问题。","options":["A. 维持 制作","B. 确保 配合","C. 保持 组合","D. 确认 搭配"],"correctIndex":1,"wrongAnswer":"","correctAnswer":"B. 确保 / 配合","reason":"第一空：\"确保稳定性\"为固定搭配，\"维持/保持\"多用于已有状态。第二空：匠人\"配合\"精密仪器完成装调，\"配合\"体现人机协作关系。\"制作/组合/搭配\"不体现人机分工。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null},{"id":"q32","subject":"言语理解与表达","question":"【2024国考】载人航天是系统最复杂、科技最________、创新最活跃的工程之一，它________力学、天文学、地球科学、航天医学、空间科学等众多科学领域，涉及系统工程、自动控制、计算机、航天动力、通信、遥感、新能源、新材料等诸多工程技术，是________的国家科技成果的\"集大成者\"。","options":["A. 广泛 融合 众望所归","B. 密集 涵盖 当之无愧","C. 尖端 集中 独占鳌头","D. 先进 兼顾 不折不扣"],"correctIndex":1,"wrongAnswer":"","correctAnswer":"B. 密集 / 涵盖 / 当之无愧","reason":"第一空：\"科技密集\"为航天工程固定表述，与\"系统复杂\"\"创新活跃\"构成三并列。第二空：\"涵盖\"与\"众多科学领域\"搭配贴切。第三空：\"当之无愧的集大成者\"常见表述。","mastered":false,"createdAt":"2026-05-26T12:00:00.000Z","updatedAt":"2026-05-26T12:00:00.000Z","reviewCount":0,"lastReviewed":null}]`);
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    let loaded = raw ? JSON.parse(raw) : null;
+    if (!loaded || !Array.isArray(loaded) || loaded.length === 0) {
+      records = getDefaultData();
+      try { save(); } catch {}
+    } else {
+      records = loaded;
+    }
+  } catch {
+    try { records = getDefaultData(); } catch { records = []; }
+  }
+  refreshSubjects();
+}
+
+function save() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  } catch {}
+  refreshSubjects();
+  if (isSyncReady()) pushToGist();
+}
+
+function refreshSubjects() {
+  subjects = new Set(records.map(r => r.subject).filter(Boolean));
+  const sel = document.getElementById('filterSubject');
+  const current = sel.value;
+  sel.innerHTML = '<option value="all">全部科目</option>';
+  subjects.forEach(s => {
+    sel.innerHTML += `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`;
+  });
+  sel.value = current !== 'all' && subjects.has(current) ? current : 'all';
+}
+
+function getId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+function openModal(id) {
+  document.getElementById('editId').value = '';
+  document.getElementById('modalTitle').textContent = '添加错题';
+  document.getElementById('formSubject').value = '';
+  document.getElementById('formQuestion').value = '';
+  document.getElementById('formWrong').value = '';
+  document.getElementById('formCorrect').value = '';
+  document.getElementById('formReason').value = '';
+  document.getElementById('formMastered').value = '0';
+  document.getElementById('quickText').value = '';
+  document.getElementById('quickSubject').value = '';
+  switchTab('manual');
+
+  if (id) {
+    const r = records.find(e => e.id === id);
+    if (r) {
+      document.getElementById('editId').value = r.id;
+      document.getElementById('modalTitle').textContent = '编辑错题';
+      document.getElementById('formSubject').value = r.subject;
+      document.getElementById('formQuestion').value = r.question;
+      document.getElementById('formWrong').value = r.wrongAnswer;
+      document.getElementById('formCorrect').value = r.correctAnswer;
+      document.getElementById('formReason').value = r.reason;
+      document.getElementById('formMastered').value = r.mastered ? '1' : '0';
+    }
+  }
+
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.add('hidden');
+}
+
+function switchTab(tab) {
+  const tabs = document.querySelectorAll('.modal-tab');
+  tabs.forEach(t => t.classList.remove('active'));
+  if (tab === 'manual') {
+    tabs[0].classList.add('active');
+    document.getElementById('manualPanel').classList.remove('hidden');
+    document.getElementById('quickPanel').classList.add('hidden');
+  } else {
+    tabs[1].classList.add('active');
+    document.getElementById('manualPanel').classList.add('hidden');
+    document.getElementById('quickPanel').classList.remove('hidden');
+  }
+}
+
+function autoDetectSubject(text) {
+  const map = [
+    ['言语理解与表达', /(言语|阅读|填空|成语|病句|排序|衔接|选词|片段|篇章|主旨|意图|细节|标题|语序)/],
+    ['数量关系', /(数[字列]|方程|概率|排列|组合|行程|工程|利润|浓度|时钟|抽屉|牛吃草|平方|公式|几[何角]|面积|体积|坐标|等差|等比)/],
+    ['判断推理', /(推理|逻辑|定义|类比|图形|加强|削弱|前提|假设|结论|真假|排列组合|论证|三段论|归纳|演绎)/],
+    ['资料分析', /(资料|数据|表格|图表|增长率|比重|倍数|百分点|同比|环比|基期|现期|年均|速算|截位|直除)/],
+    ['常识判断', /(常识|法律|宪法|刑法|民法|行政法|政治|党史|时政|历史|地理|生物|化学|物理|天文|科技|文史|经济|文化|节气|节日)/],
+    ['申论', /(申论|概括|分析|对策|建议|应用文|公文|议论文|方案|报告|讲话稿|提纲|简报|编者按|短评|倡议书|回复)/],
+    ['公共基础知识', /(公[共基]|政治理论|马[克哲]|毛[概]|邓|法治|省情|国情|管理|公文|道德|经济[学]|法[学律规])/],
+    ['面试', /(面试|结构化|无领导|模拟|演讲|应变|人际|组织|计划|协调|情景模拟|即兴)/],
+  ];
+  for (const [subject, re] of map) {
+    if (re.test(text)) return subject;
+  }
+  return '';
+}
+
+function parseQuickText() {
+  const raw = document.getElementById('quickText').value.trim();
+  if (!raw) { alert('请先粘贴题目文字'); return; }
+
+  let question = '', wrong = '', correct = '', reason = '';
+
+  // 清理题号前缀
+  const cleaned = raw.replace(/^[\s]*[\d]+[\.\、\)）\s]+/, '').trim();
+
+  // Pattern 1: 显式标签 — 题目：/ 正确答案：/ 解析： 等
+  const qMatch = cleaned.match(/题目[：:]\s*(.+?)(?=\n[^\n]*(?:答案|正确|错误|我[的选]|解析|原因|A\.|选项|来源)|$)/s);
+  if (qMatch) question = qMatch[1].replace(/\n/g, ' ').trim();
+
+  const wMatch = cleaned.match(/(?:我[的的]?答案|错误答案|我的选择|选了|选错|选了)[：:]\s*(.+?)(?=\n|$)/);
+  if (wMatch) wrong = wMatch[1].trim();
+
+  const cMatch = cleaned.match(/(?:正确答案|正解|答案)[：:]\s*(.+?)(?=\n|$)/);
+  if (cMatch) correct = cMatch[1].trim();
+
+  const rMatch = cleaned.match(/(?:解析|错误原因|原因)[：:]\s*(.+?)(?=\n|$)/s);
+  if (rMatch) reason = rMatch[1].trim();
+
+  // Pattern 2: 裸文本 — 没有标签时按常见格式智能拆分
+  if (!question) {
+    // Split by newlines, first non-empty meaningful line is the question
+    const lines = cleaned.split(/\n/).map(l => l.trim()).filter(Boolean);
+    const opts = /^[A-D][\.\、\)）]/;
+    let questionLines = [];
+
+    for (const line of lines) {
+      if (opts.test(line)) break;
+      if (/^(解析|来源|答案|正确|错误)/.test(line)) break;
+      questionLines.push(line);
+    }
+    question = questionLines.join(' ') || lines[0] || '';
+  }
+
+  // 找选项中的答案标记
+  if (!wrong) {
+    const wrongMark = cleaned.match(/[A-D](?=[\s]*[（\(]?[错误我选的]|[×✗✘])/);
+    if (wrongMark) wrong = wrongMark[0];
+    if (!wrong) {
+      const wrongMark2 = cleaned.match(/(?:选了|选了答案|选错)[：:\s]*([A-D])/);
+      if (wrongMark2) wrong = wrongMark2[1];
+    }
+  }
+  if (!correct) {
+    const correctMark = cleaned.match(/[A-D](?=[\s]*[（\(]?[对正√✓✔])/);
+    if (correctMark) correct = correctMark[0];
+    if (!correct) {
+      const correctMark2 = cleaned.match(/(?:正确|答案|正解)[：:\s]*([A-D])/);
+      if (correctMark2) correct = correctMark2[1];
+    }
+  }
+
+  // Auto-detect subject
+  const subject = document.getElementById('quickSubject').value || autoDetectSubject(raw);
+
+  // Fill form
+  document.getElementById('formSubject').value = subject || '';
+  document.getElementById('formQuestion').value = question || '';
+  document.getElementById('formWrong').value = wrong || '';
+  document.getElementById('formCorrect').value = correct || '';
+  document.getElementById('formReason').value = reason || '';
+  document.getElementById('formMastered').value = '0';
+
+  // Switch to manual panel to let user review and save
+  switchTab('manual');
+
+  // Scroll to top of modal to let user see the result
+  document.querySelector('.modal').scrollTop = 0;
+}
+
+function saveRecord() {
+  const id = document.getElementById('editId').value;
+  const data = {
+    id: id || getId(),
+    subject: document.getElementById('formSubject').value,
+    question: document.getElementById('formQuestion').value,
+    wrongAnswer: document.getElementById('formWrong').value,
+    correctAnswer: document.getElementById('formCorrect').value,
+    reason: document.getElementById('formReason').value,
+    mastered: document.getElementById('formMastered').value === '1',
+    createdAt: id ? (records.find(r => r.id === id)?.createdAt || new Date().toISOString()) : new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    reviewCount: id ? (records.find(r => r.id === id)?.reviewCount || 0) : 0,
+    lastReviewed: id ? (records.find(r => r.id === id)?.lastReviewed || null) : null,
+  };
+
+  if (id) {
+    const idx = records.findIndex(r => r.id === id);
+    if (idx !== -1) records[idx] = data;
+  } else {
+    records.unshift(data);
+  }
+
+  save();
+  closeModal();
+  renderAll();
+}
+
+function deleteRecord(id) {
+  if (!confirm('确认删除这条错题？')) return;
+  records = records.filter(r => r.id !== id);
+  save();
+  renderAll();
+}
+
+function toggleMastered(id) {
+  const r = records.find(e => e.id === id);
+  if (r) {
+    r.mastered = !r.mastered;
+    r.updatedAt = new Date().toISOString();
+    if (r.mastered) {
+      r.reviewCount++;
+      r.lastReviewed = new Date().toISOString();
+    }
+    save();
+    renderAll();
+  }
+}
+
+function markReviewed(id) {
+  const r = records.find(e => e.id === id);
+  if (r) {
+    r.reviewCount++;
+    r.lastReviewed = new Date().toISOString();
+    r.updatedAt = new Date().toISOString();
+    r.nextReview = new Date(Date.now() + 3 * 86400000).toISOString();
+    save();
+    renderAll();
+  }
+}
+
+function getReviewStatus(r) {
+  if (r.mastered) return 'ok';
+  if (r.nextReview) {
+    const until = (new Date(r.nextReview).getTime() - Date.now()) / 86400000;
+    if (until < 0) return 'overdue';
+    if (until < 1) return 'soon';
+    return 'ok';
+  }
+  if (!r.lastReviewed) return 'overdue';
+  const daysSince = (Date.now() - new Date(r.lastReviewed).getTime()) / 86400000;
+  if (daysSince > 7) return 'overdue';
+  if (daysSince > 3) return 'soon';
+  return 'ok';
+}
+
+function getReviewLabel(r) {
+  if (r.mastered) return '已掌握 ✓';
+  if (r.nextReview) {
+    const until = Math.ceil((new Date(r.nextReview).getTime() - Date.now()) / 86400000);
+    if (until < 0) return '逾期 ' + Math.abs(until) + ' 天';
+    if (until === 0) return '今天复习';
+    if (until === 1) return '明天复习';
+    return until + ' 天后复习';
+  }
+  const status = getReviewStatus(r);
+  if (status === 'overdue') return '逾期 · 第' + r.reviewCount + '次';
+  if (status === 'soon') return '临近 · 第' + r.reviewCount + '次';
+  return '正常 · 第' + r.reviewCount + '次';
+}
+
+function renderTable() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const filterSubject = document.getElementById('filterSubject').value;
+  const filterStatus = document.getElementById('filterStatus').value;
+
+  let filtered = records;
+
+  if (search) {
+    filtered = filtered.filter(r =>
+      r.question.toLowerCase().includes(search) ||
+      r.wrongAnswer.toLowerCase().includes(search) ||
+      r.correctAnswer.toLowerCase().includes(search) ||
+      r.reason.toLowerCase().includes(search) ||
+      r.subject.toLowerCase().includes(search)
+    );
+  }
+
+  if (filterSubject !== 'all') {
+    filtered = filtered.filter(r => r.subject === filterSubject);
+  }
+
+  if (filterStatus === 'mastered') {
+    filtered = filtered.filter(r => r.mastered);
+  } else if (filterStatus === 'unmastered') {
+    filtered = filtered.filter(r => !r.mastered);
+  } else if (filterStatus === 'overdue') {
+    filtered = filtered.filter(r => !r.mastered && getReviewStatus(r) === 'overdue');
+  }
+
+  const tbody = document.getElementById('tableBody');
+  const emptyState = document.getElementById('emptyState');
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '';
+    emptyState.style.display = records.length === 0 ? 'block' : 'block';
+    if (records.length > 0) {
+      emptyState.querySelector('p').textContent = '没有匹配的错题';
+    } else {
+      emptyState.querySelector('p').textContent = '还没有错题记录';
+    }
+  } else {
+    emptyState.style.display = 'none';
+  }
+
+  tbody.innerHTML = filtered.map(r => {
+    const status = getReviewStatus(r);
+    const label = getReviewLabel(r);
+    let reviewHtml = '';
+    if (r.mastered) {
+      reviewHtml = '<span class="review-badge ok">' + label + '</span>';
+    } else if (status === 'overdue') {
+      reviewHtml = '<span class="review-badge overdue">' + label + '</span>';
+    } else if (status === 'soon') {
+      reviewHtml = '<span class="review-badge soon">' + label + '</span>';
+    } else {
+      reviewHtml = '<span class="review-badge ok">' + label + '</span>';
+    }
+
+    const rowClass = r.mastered ? 'mastered' : '';
+    const subjDisplay = r.subject || '未分类';
+    const createdAt = new Date(r.createdAt).toLocaleDateString('zh-CN');
+
+    return `<tr class="${rowClass}">
+      <td><span class="subj-tag">${escapeHtml(subjDisplay)}</span></td>
+      <td title="创建于 ${createdAt}">${escapeHtml(r.question || '-')}</td>
+      <td>${escapeHtml(r.wrongAnswer || '-')}</td>
+      <td style="color:#fff;">${escapeHtml(r.correctAnswer || '-')}</td>
+      <td style="color:var(--text-dim);">${escapeHtml(r.reason || '-')}</td>
+      <td>${reviewHtml}</td>
+      <td>
+        <div class="actions-cell">
+          <button class="btn btn-sm" onclick="markReviewed('${r.id}')" title="标记已复习">✓</button>
+          <button class="btn btn-sm" onclick="openModal('${r.id}')">编辑</button>
+          <button class="btn btn-sm" onclick="toggleMastered('${r.id}')">${r.mastered ? '恢复' : '掌握'}</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteRecord('${r.id}')">删</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+
+  updateStats();
+}
+
+function updateStats() {
+  document.getElementById('statTotal').textContent = records.length;
+  document.getElementById('statMastered').textContent = records.filter(r => r.mastered).length;
+  document.getElementById('statUnreviewed').textContent = records.filter(r => !r.mastered).length;
+  document.getElementById('statOverdue').textContent = records.filter(r => !r.mastered && getReviewStatus(r) === 'overdue').length;
+}
+
+function renderAll() {
+  renderTable();
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '错题本备份_' + new Date().toISOString().slice(0, 10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data)) throw new Error('格式错误');
+      if (!confirm(`将导入 ${data.length} 条记录，与现有 ${records.length} 条合并。确认？`)) return;
+      const merged = [...data, ...records];
+      // 去重（按id）
+      const seen = new Set();
+      records = merged.filter(r => {
+        if (seen.has(r.id)) return false;
+        seen.add(r.id);
+        return true;
+      });
+      save();
+      renderAll();
+      alert('导入完成');
+    } catch (err) {
+      alert('导入失败：文件格式不正确');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+// Modal click-outside close
+document.getElementById('modalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+
+// ====== Quiz Mode ======
+let quizState = { active: false, currentIndex: 0, answers: {}, questions: [] };
+
+function startQuiz() {
+  const withOptions = records.filter(r => r.options && r.options.length > 0);
+  if (withOptions.length === 0) { alert('还没有带选项的题目，请先添加带选项的错题。'); return; }
+  quizState = { active: true, currentIndex: 0, answers: {}, questions: withOptions };
+  document.querySelector('.table-wrap').classList.add('hidden');
+  document.querySelector('.toolbar').classList.add('hidden');
+  document.querySelector('.stats-row').classList.add('hidden');
+  document.getElementById('quizPanel').classList.remove('hidden');
+  document.getElementById('quizModeBtn').textContent = '退出刷题';
+  renderQuizQuestion();
+}
+
+function exitQuiz() {
+  quizState.active = false;
+  document.querySelector('.table-wrap').classList.remove('hidden');
+  document.querySelector('.toolbar').classList.remove('hidden');
+  document.querySelector('.stats-row').classList.remove('hidden');
+  document.getElementById('quizPanel').classList.add('hidden');
+  document.getElementById('quizModeBtn').textContent = '刷题模式';
+  updateStats();
+  renderTable();
+}
+
+function renderQuizQuestion() {
+  const { currentIndex, questions, answers } = quizState;
+  const total = questions.length;
+  const q = questions[currentIndex];
+  const answered = answers[q.id] !== undefined;
+  const letters = ['A', 'B', 'C', 'D'];
+  const userAnswer = answers[q.id];
+
+  document.getElementById('quizProgressFill').style.width = ((currentIndex + 1) / total * 100) + '%';
+  document.getElementById('quizCounter').textContent = `${currentIndex + 1}/${total}`;
+  document.getElementById('quizPrevBtn').disabled = currentIndex === 0;
+
+  const nextBtn = document.getElementById('quizNextBtn');
+  nextBtn.style.display = '';
+  if (currentIndex >= total - 1) {
+    nextBtn.textContent = '查看成绩';
+    nextBtn.onclick = showQuizSummary;
+  } else {
+    nextBtn.textContent = '下一题';
+    nextBtn.onclick = nextQuestion;
+  }
+
+  let optionsHtml = q.options.map((opt, i) => {
+    let cls = '';
+    if (answered) {
+      cls = 'revealed';
+      if (i === q.correctIndex) cls += ' correct-choice';
+      else if (i === userAnswer && i !== q.correctIndex) cls += ' wrong-choice';
+      else cls += ' dimmed';
+    }
+    return `<div class="quiz-option ${cls}" onclick="${answered ? '' : `selectOption(${i})`}">
+      <span class="opt-letter">${letters[i]}</span>
+      <span>${escapeHtml(opt.replace(/^[A-D][\\.\\、\\)）\\s]+/, ''))}</span>
+    </div>`;
+  }).join('');
+
+  let feedbackHtml = '';
+  if (answered) {
+    const isCorrect = userAnswer === q.correctIndex;
+    const record = records.find(r => r.id === q.id);
+    const streak = record ? (record.correctStreak || 0) : 0;
+    const streakMsg = isCorrect && streak > 0 ? ` · 连续正确 ${streak}/10` : '';
+    const masteredMsg = isCorrect && record && record.mastered && streak >= 10 ? ' 🎉 已自动掌握！' : '';
+    feedbackHtml = `<div class="quiz-feedback ${isCorrect ? 'correct' : 'wrong'}">
+      <div class="fb-title">${isCorrect ? '✓ 回答正确！' + streakMsg + masteredMsg : '✗ 回答错误 · 连续正确已重置'}</div>
+      <div>正确答案：<strong>${letters[q.correctIndex]}</strong></div>
+      ${q.reason ? `<div class="fb-reason">${escapeHtml(q.reason)}</div>` : ''}
+    </div>`;
+  }
+
+  document.getElementById('quizContent').innerHTML = `<div class="quiz-card">
+    <div class="quiz-subject-tag">${escapeHtml(q.subject || '未分类')}</div>
+    <div class="quiz-question-text">${escapeHtml(q.question)}</div>
+    <div class="quiz-options">${optionsHtml}</div>
+    ${feedbackHtml}
+  </div>`;
+}
+
+function selectOption(index) {
+  const { currentIndex, questions } = quizState;
+  const q = questions[currentIndex];
+  if (quizState.answers[q.id] !== undefined) return;
+  quizState.answers[q.id] = index;
+  const record = records.find(r => r.id === q.id);
+  if (record) {
+    record.reviewCount++;
+    record.lastReviewed = new Date().toISOString();
+    record.updatedAt = new Date().toISOString();
+    const now = Date.now();
+    const isCorrect = index === q.correctIndex;
+    if (index !== q.correctIndex) {
+      record.wrongAnswer = ['A', 'B', 'C', 'D'][index];
+      record.correctStreak = 0;
+    } else {
+      record.correctStreak = (record.correctStreak || 0) + 1;
+    }
+    record.nextReview = new Date(now + (isCorrect ? 5 : 1) * 86400000).toISOString();
+    if (record.correctStreak >= 10) {
+      record.mastered = true;
+    }
+  }
+  save();
+  renderQuizQuestion();
+}
+
+function nextQuestion() {
+  if (quizState.currentIndex < quizState.questions.length - 1) {
+    quizState.currentIndex++;
+    renderQuizQuestion();
+  }
+}
+
+function prevQuestion() {
+  if (quizState.currentIndex > 0) {
+    quizState.currentIndex--;
+    renderQuizQuestion();
+  }
+}
+
+function showQuizSummary() {
+  const { questions, answers } = quizState;
+  const total = questions.length;
+  const correct = questions.filter(q => answers[q.id] === q.correctIndex).length;
+  const pct = Math.round(correct / total * 100);
+  let scoreClass = pct >= 90 ? 'perfect' : (pct >= 60 ? 'good' : '');
+  document.getElementById('quizProgressFill').style.width = '100%';
+  document.getElementById('quizCounter').textContent = '完成';
+  document.getElementById('quizPrevBtn').disabled = true;
+  document.getElementById('quizNextBtn').style.display = 'none';
+  document.getElementById('quizContent').innerHTML = `<div class="quiz-summary">
+    <div class="score ${scoreClass}">${correct}/${total}</div>
+    <div class="detail">正确率 ${pct}%</div>
+    <p style="color:var(--text-dim);font-size:0.85rem;">${pct >= 90 ? '太厉害了，掌握得很好！' : (pct >= 60 ? '继续加油，还有提升空间！' : '别灰心，多复习几次就好了！')}</p>
+    <div style="margin-top:20px;display:flex;gap:12px;justify-content:center;">
+      <button class="btn" onclick="retryWrongQuestions()">复习错题</button>
+      <button class="btn btn-primary" onclick="restartQuiz()">重新刷题</button>
+    </div>
+  </div>`;
+}
+
+function retryWrongQuestions() {
+  const { questions, answers } = quizState;
+  const wrong = questions.filter(q => answers[q.id] !== undefined && answers[q.id] !== q.correctIndex);
+  if (wrong.length === 0) { alert('没有错题，太棒了！'); return; }
+  quizState.questions = wrong;
+  quizState.currentIndex = 0;
+  quizState.answers = {};
+  renderQuizQuestion();
+}
+
+function restartQuiz() {
+  quizState.currentIndex = 0;
+  quizState.answers = {};
+  quizState.questions = records.filter(r => r.options && r.options.length > 0);
+  renderQuizQuestion();
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+// Init
+loadSyncCfg();
+load();
+renderAll();
+
+// Background: pull from cloud if configured
+if (isSyncReady()) {
+  setSyncStatus('on');
+  pullAndMerge();
+} else {
+  setSyncStatus('off');
+}
+</script>
+
+</body>
+</html>
