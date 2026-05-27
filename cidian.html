@@ -233,6 +233,7 @@
         <option value="idiom">成语辨析</option>
         <option value="word">词语辨析</option>
       </select>
+      <button class="btn btn-sm" id="shuffleBtn" onclick="toggleShuffle()" title="打乱浏览顺序">🔀 打乱</button>
       <button class="btn btn-primary btn-sm" onclick="openBatchModal()">+ 批量添加</button>
     </div>
     <div class="browse-list" id="browseList"></div>
@@ -312,6 +313,7 @@ const STORAGE_KEY = 'cidian_data_v2';
 const DAILY_GOAL = 100;
 
 let entries = [];
+let shuffleBrowse = false;
 let quizState = { index: 0, answers: {}, questions: [] };
 let currentPanel = 'browse';
 
@@ -1553,6 +1555,14 @@ function renderBrowse() {
       e.question.includes(search)
     );
   }
+  // Shuffle if enabled
+  if (shuffleBrowse) {
+    filtered = [...filtered];
+    for (let i = filtered.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [filtered[i], filtered[j]] = [filtered[j], filtered[i]];
+    }
+  }
   document.getElementById('browseList').innerHTML = filtered.map(e => {
     const tag = e.type === 'idiom' ? '<span class="bw-tag idiom">成语</span>' : '<span class="bw-tag word">词语</span>';
     const masteredIcon = e.mastered ? ' ✅' : '';
@@ -1561,6 +1571,26 @@ function renderBrowse() {
       <div class="bw-diff">${e.difference.slice(0, 80)}…</div>
     </div>`;
   }).join('');
+  // Update shuffle button style
+  const btn = document.getElementById('shuffleBtn');
+  if (btn) {
+    if (shuffleBrowse) {
+      btn.style.background = 'var(--accent)';
+      btn.style.color = '#0a0e14';
+      btn.style.borderColor = 'var(--accent)';
+      btn.textContent = '🔀 打乱中';
+    } else {
+      btn.style.background = '';
+      btn.style.color = '';
+      btn.style.borderColor = '';
+      btn.textContent = '🔀 打乱';
+    }
+  }
+}
+
+function toggleShuffle() {
+  shuffleBrowse = !shuffleBrowse;
+  renderBrowse();
 }
 
 // ====== Flashcard ======
