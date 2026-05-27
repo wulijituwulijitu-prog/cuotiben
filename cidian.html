@@ -39,7 +39,7 @@
   @keyframes syncPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
 
   /* Stats */
-  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+  .stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; }
   .stat-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
     padding: 14px 10px; text-align: center;
@@ -210,6 +210,7 @@
     <div class="stat-card"><div class="num accent" id="sMastered">0</div><div class="lbl">已掌握</div></div>
     <div class="stat-card"><div class="num warn" id="sStreak">0</div><div class="lbl">连续天数</div></div>
     <div class="stat-card"><div class="num purple" id="sToday">0</div><div class="lbl">今日已刷</div></div>
+    <div class="stat-card"><div class="num" id="sYesterday">0</div><div class="lbl">昨日已刷</div></div>
   </div>
 
   <div class="daily-bar" id="dailyBar">
@@ -232,6 +233,7 @@
         <option value="idiom">成语辨析</option>
         <option value="word">词语辨析</option>
       </select>
+      <button class="btn btn-primary btn-sm" onclick="openBatchModal()">+ 批量添加</button>
     </div>
     <div class="browse-list" id="browseList"></div>
   </div>
@@ -273,6 +275,32 @@
       <button class="btn btn-danger" onclick="disconnectSync()" id="disconnectBtn" style="display:none;">断开同步</button>
       <button class="btn" onclick="closeSyncSettings()">取消</button>
       <button class="btn btn-primary" onclick="connectSync()" id="connectBtn">连接并同步</button>
+    </div>
+  </div>
+</div>
+
+<!-- Batch Import Modal -->
+<div class="modal-overlay hidden" id="batchOverlay" style="position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:90%;max-width:700px;max-height:85vh;overflow-y:auto;">
+    <h2 style="color:#fff;font-size:1.1rem;margin-bottom:16px;">批量添加词条</h2>
+    <p style="color:var(--text-dim);font-size:0.78rem;margin-bottom:14px;line-height:1.7;">
+      格式：每组用空行隔开。<br>
+      每组至少包含两个词语及其意思，可选「辨析」和「例题」。<br><br>
+      例：<br>
+      <code style="background:var(--bg);padding:4px 8px;border-radius:4px;display:block;white-space:pre-wrap;font-size:0.75rem;">词A：意思A
+词B：意思B
+辨析：两者的区别说明
+例题：这是一道___的例题。
+答案：词A</code>
+    </p>
+    <div class="form-group" style="margin-bottom:14px;">
+      <label style="display:block;font-size:0.78rem;color:var(--text-dim);margin-bottom:6px;">粘贴词条</label>
+      <textarea id="batchText" rows="14" placeholder="按上面的格式粘贴…" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;color:var(--text);font-size:0.85rem;outline:none;font-family:inherit;resize:vertical;"></textarea>
+    </div>
+    <div id="batchMsg" style="font-size:0.8rem;margin-bottom:12px;display:none;"></div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn" onclick="closeBatchModal()">取消</button>
+      <button class="btn btn-primary" onclick="execBatchImport()">解析并导入</button>
     </div>
   </div>
 </div>
@@ -1482,6 +1510,15 @@ function updateStats() {
   }).length;
   document.getElementById('sToday').textContent = todayCount;
 
+  // Yesterday count
+  const yest = new Date();
+  yest.setDate(yest.getDate() - 1);
+  const yestStr = yest.toISOString().slice(0, 10);
+  const yestCount = entries.filter(e => {
+    return e.lastReviewed && e.lastReviewed.slice(0, 10) === yestStr;
+  }).length;
+  document.getElementById('sYesterday').textContent = yestCount;
+
   // Daily goal
   const pct = Math.min(100, Math.round(todayCount / DAILY_GOAL * 100));
   document.getElementById('dailyFill').style.width = pct + '%';
@@ -1590,6 +1627,10 @@ function renderQuiz() {
     const streakMsg = isCorrect ? ' · 连续正确 ' + streak + '/10' : ' · 清零';
     fbHtml = `<div class="quiz-feedback ${isCorrect ? 'correct' : 'wrong'}">
       <strong>${isCorrect ? '✓ 正确！' + streakMsg : '✗ 错误' + streakMsg + '（稍后再做）'}</strong>
+      ${isCorrect && q.meanings ? `<div style="margin-top:10px;padding:10px 14px;background:rgba(0,212,170,0.06);border-radius:8px;line-height:1.8;">
+        <div><strong style="color:var(--accent);">${q.words[0]}</strong>：${q.meanings[0]}</div>
+        <div><strong style="color:var(--accent);">${q.words[1]}</strong>：${q.meanings[1]}</div>
+      </div>` : ''}
       <div style="margin-top:8px;"><strong>辨析：</strong>${q.difference}</div>
     </div>`;
   }
@@ -1699,6 +1740,100 @@ function switchPanel(panel) {
     document.getElementById('quizPanel').classList.remove('hidden');
     startQuiz();
   }
+}
+
+// ====== Batch Import ======
+function openBatchModal() {
+  document.getElementById('batchText').value = '';
+  document.getElementById('batchMsg').style.display = 'none';
+  document.getElementById('batchOverlay').classList.remove('hidden');
+}
+function closeBatchModal() {
+  document.getElementById('batchOverlay').classList.add('hidden');
+}
+document.addEventListener('DOMContentLoaded', function() {
+  const batchOverlay = document.getElementById('batchOverlay');
+  if (batchOverlay) batchOverlay.addEventListener('click', function(e) { if (e.target === this) closeBatchModal(); });
+});
+
+function execBatchImport() {
+  const raw = document.getElementById('batchText').value.trim();
+  if (!raw) { showBatchMsg('请先粘贴词条内容', 'var(--danger)'); return; }
+
+  // Split by blank lines into groups
+  const groups = raw.split(/\n\s*\n/).filter(g => g.trim());
+  const newEntries = [];
+  const errors = [];
+
+  groups.forEach((group, gi) => {
+    const lines = group.split(/\n/).map(l => l.trim()).filter(Boolean);
+    const words = [], meanings = [];
+    let diff = '', question = '', answer = '';
+
+    for (const line of lines) {
+      // Try to match numbered or plain "word：meaning" pattern
+      let m = line.match(/^(?:\d+[\.\、\)）\s]+)?(.+?)[：:]\s*(.+)$/);
+      if (!m) { errors.push('第'+(gi+1)+'组无法解析: ' + line); continue; }
+      const key = m[1].trim();
+      const val = m[2].trim();
+
+      if (/^辨[析别]/.test(key)) { diff = val; }
+      else if (/^例[题]/.test(key) || /^题[目]/.test(key)) { question = val; }
+      else if (/^答[案]/.test(key) || /^正[确]/.test(key)) { answer = val; }
+      else {
+        words.push(key);
+        meanings.push(val);
+      }
+    }
+
+    if (words.length < 2) { errors.push('第'+(gi+1)+'组至少需要两个词'); return; }
+    // Auto-generate question if not provided
+    if (!question) {
+      question = '请选择最适合填入___处的词语。';
+    }
+    // Auto-generate options from words
+    const options = words.slice(0, 4); // max 4 options
+    const correctIndex = answer ? options.findIndex(o => o === answer) : 0;
+    if (correctIndex < 0 && answer) {
+      options[0] = answer;
+    }
+
+    newEntries.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      type: words.some(w => w.length >= 4) ? 'idiom' : 'word',
+      words: words,
+      meanings: meanings,
+      difference: diff || (words[0] + '与' + words[1] + '的区别'),
+      question: question,
+      options: options,
+      correctIndex: answer ? (options.findIndex(o => o === answer) < 0 ? 0 : options.findIndex(o => o === answer)) : 0,
+      reviewCount: 0, correctStreak: 0, mastered: false,
+      nextReview: null, lastReviewed: null
+    });
+  });
+
+  if (newEntries.length === 0) {
+    showBatchMsg('解析失败: ' + (errors.join('; ') || '未找到有效词条'), 'var(--danger)');
+    return;
+  }
+
+  entries = [...newEntries, ...entries];
+  save();
+  updateStats();
+  renderBrowse();
+  closeBatchModal();
+  showBatchMsg('', '');
+
+  let msg = '成功导入 ' + newEntries.length + ' 组词条';
+  if (errors.length) msg += '（' + errors.length + ' 组解析失败）';
+  alert(msg);
+}
+
+function showBatchMsg(msg, color) {
+  const el = document.getElementById('batchMsg');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+  el.style.color = color || 'var(--text-dim)';
 }
 
 function escapeHtml(str) {
