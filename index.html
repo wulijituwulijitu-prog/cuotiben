@@ -319,6 +319,7 @@
         导入恢复
         <input type="file" accept=".json" onchange="importData(event)" style="display:none;">
       </label>
+      <button class="btn" onclick="startDailyQuiz()" id="dailyQuizBtn" style="background:var(--accent);color:#fff;border-color:var(--accent);">每日20题</button>
       <button class="btn" onclick="startQuiz()" id="quizModeBtn">刷题模式</button>
       <button class="btn" onclick="forceEnrich()" id="enrichBtn" style="color:var(--warn);border-color:var(--warn);display:none;">更新解析</button>
       <button class="btn btn-primary" onclick="openModal()">+ 添加错题</button>
@@ -386,6 +387,7 @@
   <div class="quiz-panel hidden" id="quizPanel">
     <div class="quiz-header">
       <button class="btn" onclick="exitQuiz()">← 返回列表</button>
+      <span class="quiz-mode-tag" id="quizModeTag" style="font-size:0.75rem;color:var(--accent);font-weight:600;padding:2px 8px;border:1px solid var(--accent);border-radius:10px;margin-right:8px;">每日20题</span>
       <div class="quiz-progress-bar"><div class="quiz-progress-fill" id="quizProgressFill" style="width:0%"></div></div>
       <span class="quiz-counter" id="quizCounter">1/16</span>
     </div>
@@ -530,6 +532,7 @@ A. GDP=GNP  B. GDP包括中间产品  C. GDP按国土原则计算  D. GDP只算�
 <script>
 const STORAGE_KEY = 'errorbook_data_v4';
 const QUIZ_SESSION_KEY = 'errorbook_quiz_session_v1';
+const DAILY_SESSION_KEY = 'errorbook_daily_session_v1';
 
 let records = [];
 let subjects = new Set();
@@ -2372,7 +2375,8 @@ function saveQuizSession() {
       answers: quizState.answers,
       questionIds: quizState.questions.map(q => q.id)
     };
-    localStorage.setItem(QUIZ_SESSION_KEY, JSON.stringify(session));
+    const key = quizMode === 'daily' ? DAILY_SESSION_KEY : QUIZ_SESSION_KEY;
+    localStorage.setItem(key, JSON.stringify(session));
   } catch {}
 }
 
@@ -2383,8 +2387,19 @@ function loadQuizSession() {
   } catch { return null; }
 }
 
+function loadDailySession() {
+  try {
+    const raw = localStorage.getItem(DAILY_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
 function clearQuizSession() {
   try { localStorage.removeItem(QUIZ_SESSION_KEY); } catch {}
+}
+
+function clearDailySession() {
+  try { localStorage.removeItem(DAILY_SESSION_KEY); } catch {}
 }
 
 function refreshSubjects() {
@@ -2771,8 +2786,16 @@ document.getElementById('modalOverlay').addEventListener('click', function(e) {
 
 // ====== Quiz Mode ======
 let quizState = { active: false, currentIndex: 0, answers: {}, questions: [] };
+let quizMode = 'full'; // 'full' | 'daily'
 
 function startQuiz() {
+  // If in daily mode, warn before switching
+  if (quizState.active && quizMode === 'daily') {
+    const answered = Object.keys(quizState.answers).length;
+    if (answered > 0 && !confirm(`当前每日20题已有 ${answered} 题作答记录，切换将丢失进度。\n\n确定切换到全部刷题模式？`)) return;
+    clearDailySession();
+  }
+
   const withOptions = records.filter(r => r.options && r.options.length > 0);
   if (withOptions.length === 0) { alert('还没有带选项的题目，请先添加带选项的错题。'); return; }
 
@@ -2791,12 +2814,79 @@ function startQuiz() {
     }
   }
 
+  quizMode = 'full';
   quizState = { active: true, currentIndex: resumeIdx, answers: resumeAnswers, questions: withOptions };
   document.querySelector('.table-wrap').classList.add('hidden');
   document.querySelector('.toolbar').classList.add('hidden');
   document.querySelector('.stats-row').classList.add('hidden');
   document.getElementById('quizPanel').classList.remove('hidden');
   document.getElementById('quizModeBtn').textContent = '退出刷题';
+  document.getElementById('dailyQuizBtn').textContent = '每日20题';
+  renderQuizQuestion();
+  saveQuizSession();
+}
+
+function startDailyQuiz() {
+  const withOptions = records.filter(r => r.options && r.options.length > 0);
+  if (withOptions.length === 0) { alert('还没有带选项的题目，请先添加带选项的错题。'); return; }
+
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const saved = loadDailySession();
+
+  // If already completed today
+  if (saved && saved.date === today && saved.completed) {
+    if (!confirm('今天的20题已经完成！\n\n是否重新开始一轮？')) return;
+  }
+
+  let dayQuestions, resumeIdx = 0, resumeAnswers = {};
+
+  // Resume today's session if same date and same question set
+  if (saved && saved.date === today && saved.questionIds && !saved.completed) {
+    const savedIds = [...saved.questionIds].sort().join(',');
+    // Check if these questions still exist
+    const existingIds = saved.questionIds.filter(id => records.some(r => r.id === id));
+    if (existingIds.length === saved.questionIds.length) {
+      const answeredCount = Object.keys(saved.answers).length;
+      if (answeredCount > 0 && confirm(`检测到今天未完成的每日20题（已答 ${answeredCount}/20，进度 ${saved.currentIndex + 1}/20）。\n\n是否继续？`)) {
+        dayQuestions = records.filter(r => saved.questionIds.includes(r.id));
+        resumeIdx = saved.currentIndex;
+        resumeAnswers = saved.answers;
+      }
+    }
+  }
+
+  // Pick new 20 questions if not resuming
+  if (!dayQuestions) {
+    clearDailySession();
+    const now = new Date();
+    // Priority 1: due for review (nextReview <= now)
+    const due = withOptions.filter(r => r.nextReview && new Date(r.nextReview) <= now);
+    // Priority 2: never reviewed or unmastered
+    const fresh = withOptions.filter(r => !r.nextReview || r.reviewCount === 0);
+    const unmastered = withOptions.filter(r => !r.mastered);
+    // Combine: due first, then fresh, then unmastered, then the rest
+    const seen = new Set();
+    const ranked = [];
+    for (const r of [...due, ...fresh, ...unmastered, ...withOptions]) {
+      if (!seen.has(r.id)) { seen.add(r.id); ranked.push(r); }
+    }
+    // Take 20, shuffle for variety
+    const picked = ranked.slice(0, 20);
+    for (let i = picked.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [picked[i], picked[j]] = [picked[j], picked[i]];
+    }
+    dayQuestions = picked;
+  }
+
+  quizMode = 'daily';
+  quizState = { active: true, currentIndex: resumeIdx, answers: resumeAnswers, questions: dayQuestions };
+  document.querySelector('.table-wrap').classList.add('hidden');
+  document.querySelector('.toolbar').classList.add('hidden');
+  document.querySelector('.stats-row').classList.add('hidden');
+  document.getElementById('quizPanel').classList.remove('hidden');
+  document.getElementById('quizModeBtn').textContent = '刷题模式';
+  document.getElementById('dailyQuizBtn').textContent = '退出每日20题';
   renderQuizQuestion();
   saveQuizSession();
 }
@@ -2808,6 +2898,7 @@ function exitQuiz() {
   document.querySelector('.stats-row').classList.remove('hidden');
   document.getElementById('quizPanel').classList.add('hidden');
   document.getElementById('quizModeBtn').textContent = '刷题模式';
+  document.getElementById('dailyQuizBtn').textContent = '每日20题';
   updateStats();
   renderTable();
 }
@@ -2820,6 +2911,7 @@ function renderQuizQuestion() {
   const letters = ['A', 'B', 'C', 'D'];
   const userAnswer = answers[q.id];
 
+  document.getElementById('quizModeTag').style.display = quizMode === 'daily' ? '' : 'none';
   document.getElementById('quizProgressFill').style.width = ((currentIndex + 1) / total * 100) + '%';
   document.getElementById('quizCounter').textContent = `${currentIndex + 1}/${total}`;
   document.getElementById('quizPrevBtn').disabled = currentIndex === 0;
@@ -2915,12 +3007,26 @@ function prevQuestion() {
 }
 
 function showQuizSummary() {
-  clearQuizSession();
+  if (quizMode === 'daily') {
+    // Mark daily session as completed
+    try {
+      const raw = localStorage.getItem(DAILY_SESSION_KEY);
+      if (raw) {
+        const session = JSON.parse(raw);
+        session.completed = true;
+        localStorage.setItem(DAILY_SESSION_KEY, JSON.stringify(session));
+      }
+    } catch {}
+  } else {
+    clearQuizSession();
+  }
   const { questions, answers } = quizState;
   const total = questions.length;
+  const answered = questions.filter(q => answers[q.id] !== undefined).length;
   const correct = questions.filter(q => answers[q.id] === q.correctIndex).length;
-  const pct = Math.round(correct / total * 100);
+  const pct = total > 0 ? Math.round(correct / total * 100) : 0;
   let scoreClass = pct >= 90 ? 'perfect' : (pct >= 60 ? 'good' : '');
+  const modeLabel = quizMode === 'daily' ? '每日20题' : '刷题';
   document.getElementById('quizProgressFill').style.width = '100%';
   document.getElementById('quizCounter').textContent = '完成';
   document.getElementById('quizPrevBtn').disabled = true;
@@ -2931,13 +3037,13 @@ function showQuizSummary() {
     <p style="color:var(--text-dim);font-size:0.85rem;">${pct >= 90 ? '太厉害了，掌握得很好！' : (pct >= 60 ? '继续加油，还有提升空间！' : '别灰心，多复习几次就好了！')}</p>
     <div style="margin-top:20px;display:flex;gap:12px;justify-content:center;">
       <button class="btn" onclick="retryWrongQuestions()">复习错题</button>
-      <button class="btn btn-primary" onclick="restartQuiz()">重新刷题</button>
+      <button class="btn btn-primary" onclick="restartQuiz()">${quizMode === 'daily' ? '重新选20题' : '重新刷题'}</button>
     </div>
   </div>`;
 }
 
 function retryWrongQuestions() {
-  clearQuizSession();
+  if (quizMode === 'daily') { clearDailySession(); } else { clearQuizSession(); }
   const { questions, answers } = quizState;
   const wrong = questions.filter(q => answers[q.id] !== undefined && answers[q.id] !== q.correctIndex);
   if (wrong.length === 0) { alert('没有错题，太棒了！'); return; }
@@ -2948,6 +3054,11 @@ function retryWrongQuestions() {
 }
 
 function restartQuiz() {
+  if (quizMode === 'daily') {
+    clearDailySession();
+    startDailyQuiz();
+    return;
+  }
   clearQuizSession();
   quizState.currentIndex = 0;
   quizState.answers = {};
