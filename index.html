@@ -754,7 +754,8 @@ async function pullAndMerge() {
     const gistIds = new Set(gistData.map(r => r.id));
     const localOnly = records.filter(r => !gistIds.has(r.id));
     records = [...gistData, ...localOnly];
-    try { save(); } catch {}
+    // Apply enriched reasons from defaults
+    if (enrichReasons(records)) { try { save(); } catch {} }
     renderAll();
   } else if (gistData && gistData.length === 0 && records.length > 0) {
     // Gist is empty but local has data, push local
@@ -1416,6 +1417,23 @@ function getDefaultData() {
   }
 ]`);
 }
+function enrichReasons(targets) {
+  // Update reason fields from default data without changing other fields (reviewCount, mastered, etc.)
+  let updated = false;
+  try {
+    const defaults = getDefaultData();
+    const defaultMap = {};
+    defaults.forEach(d => { defaultMap[d.id] = d; });
+    targets.forEach(r => {
+      if (defaultMap[r.id] && defaultMap[r.id].reason && defaultMap[r.id].reason !== r.reason) {
+        r.reason = defaultMap[r.id].reason;
+        updated = true;
+      }
+    });
+  } catch {}
+  return updated;
+}
+
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -1424,19 +1442,7 @@ function load() {
       records = getDefaultData();
       try { save(); } catch {}
     } else {
-      // Merge enriched reasons from default data
-      let migrated = false;
-      try {
-        const defaults = getDefaultData();
-        const defaultMap = {};
-        defaults.forEach(d => { defaultMap[d.id] = d; });
-        loaded.forEach(r => {
-          if (defaultMap[r.id] && defaultMap[r.id].reason && defaultMap[r.id].reason !== r.reason) {
-            r.reason = defaultMap[r.id].reason;
-            migrated = true;
-          }
-        });
-      } catch {}
+      const migrated = enrichReasons(loaded);
       records = loaded;
       if (migrated) { try { save(); } catch {} }
     }
