@@ -1682,27 +1682,34 @@ function answerQuiz(optIndex) {
   save();
   updateStats();
 
-  if (isCorrect) {
-    // Remove from pending, add to completed
-    quizState.completed.push(q);
-    quizState.pending.splice(index, 1);
-  }
-  // If wrong, keep in pending (stays for retry)
-
   renderQuiz();
 }
 
 function advanceQuiz() {
   const { index, pending } = quizState;
-  // Move to next in pending
   if (pending.length === 0) { showQuizSummary(); return; }
-  if (index >= pending.length - 1) {
-    // End of this round, start next round if still have pending
-    quizState.index = 0;
-    quizState.round++;
+
+  const q = pending[index];
+  const userAns = quizState.answers[q.id];
+  const wasCorrect = userAns === q.correctIndex;
+
+  if (wasCorrect) {
+    // Move from pending to completed
+    quizState.completed.push(q);
+    quizState.pending.splice(index, 1);
+    // Reset index if we removed the last item
+    if (index >= pending.length) quizState.index = 0;
   } else {
-    quizState.index++;
+    // Wrong answer stays in pending for retry; advance index
+    if (index >= pending.length - 1) {
+      quizState.index = 0;
+      quizState.round++;
+    } else {
+      quizState.index++;
+    }
   }
+
+  if (pending.length === 0) { showQuizSummary(); return; }
   renderQuiz();
 }
 
