@@ -310,6 +310,7 @@
 
 
 const STORAGE_KEY = 'cidian_data_v2';
+const QUIZ_SESSION_KEY = 'cidian_quiz_session_v1';
 const DAILY_GOAL = 100;
 
 let entries = [];
@@ -1496,6 +1497,34 @@ function save() {
   if (isSyncReady()) pushToGist();
 }
 
+// ====== Quiz Session Persistence ======
+function saveQuizSession() {
+  if (!quizState.pending || quizState.pending.length === 0) return;
+  try {
+    const session = {
+      index: quizState.index,
+      answers: quizState.answers,
+      pendingIds: quizState.pending.map(q => q.id),
+      completedIds: quizState.completed.map(q => q.id),
+      firstTry: quizState.firstTry,
+      totalQuestions: quizState.totalQuestions,
+      round: quizState.round
+    };
+    localStorage.setItem(QUIZ_SESSION_KEY, JSON.stringify(session));
+  } catch {}
+}
+
+function loadQuizSession() {
+  try {
+    const raw = localStorage.getItem(QUIZ_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function clearQuizSession() {
+  try { localStorage.removeItem(QUIZ_SESSION_KEY); } catch {}
+}
+
 // ====== Stats ======
 function updateStats() {
   document.getElementById('sTotal').textContent = entries.length;
@@ -1619,11 +1648,40 @@ function closeCard() {
 
 // ====== Quiz ======
 function startQuiz() {
-  const shuffled = [...entries].sort(() => Math.random() - 0.5);
-  quizState = {
-    index: 0, answers: {}, pending: [...shuffled], completed: [],
-    firstTry: {}, totalQuestions: shuffled.length, round: 1
-  };
+  const saved = loadQuizSession();
+  let resumeState = null;
+
+  if (saved && saved.pendingIds && saved.pendingIds.length > 0) {
+    const remainingIds = new Set(saved.pendingIds);
+    // Check if the saved session's questions still exist
+    const stillExist = saved.pendingIds.every(id => entries.some(e => e.id === id));
+    if (stillExist && saved.pendingIds.length < entries.length + 10) {
+      const doneCount = saved.completedIds ? saved.completedIds.length : 0;
+      const total = saved.totalQuestions;
+      if (doneCount > 0 && confirm(`检测到上次刷题进度（已完成 ${doneCount}/${total}，剩余 ${saved.pendingIds.length} 题）。\n\n是否继续上次的进度？`)) {
+        resumeState = {
+          index: Math.min(saved.index || 0, saved.pendingIds.length - 1),
+          answers: saved.answers || {},
+          pending: saved.pendingIds.map(id => entries.find(e => e.id === id)).filter(Boolean),
+          completed: (saved.completedIds || []).map(id => entries.find(e => e.id === id)).filter(Boolean),
+          firstTry: saved.firstTry || {},
+          totalQuestions: saved.totalQuestions,
+          round: saved.round || 1
+        };
+      }
+    }
+  }
+
+  if (resumeState) {
+    quizState = resumeState;
+  } else {
+    clearQuizSession();
+    const shuffled = [...entries].sort(() => Math.random() - 0.5);
+    quizState = {
+      index: 0, answers: {}, pending: [...shuffled], completed: [],
+      firstTry: {}, totalQuestions: shuffled.length, round: 1
+    };
+  }
   renderQuiz();
 }
 
@@ -1710,6 +1768,7 @@ function answerQuiz(optIndex) {
     if (record.correctStreak >= 10) record.mastered = true;
   }
   save();
+  saveQuizSession();
   updateStats();
 
   renderQuiz();
@@ -1740,10 +1799,12 @@ function advanceQuiz() {
   }
 
   if (pending.length === 0) { showQuizSummary(); return; }
+  saveQuizSession();
   renderQuiz();
 }
 
 function showQuizSummary() {
+  clearQuizSession();
   const { completed, totalQuestions, firstTry, round } = quizState;
   const firstTryCorrect = Object.values(firstTry).filter(Boolean).length;
   const pct = Math.round(firstTryCorrect / totalQuestions * 100);
