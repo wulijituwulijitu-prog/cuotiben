@@ -1424,7 +1424,21 @@ function load() {
       records = getDefaultData();
       try { save(); } catch {}
     } else {
+      // Merge enriched reasons from default data
+      let migrated = false;
+      try {
+        const defaults = getDefaultData();
+        const defaultMap = {};
+        defaults.forEach(d => { defaultMap[d.id] = d; });
+        loaded.forEach(r => {
+          if (defaultMap[r.id] && defaultMap[r.id].reason && defaultMap[r.id].reason !== r.reason) {
+            r.reason = defaultMap[r.id].reason;
+            migrated = true;
+          }
+        });
+      } catch {}
       records = loaded;
+      if (migrated) { try { save(); } catch {} }
     }
   } catch {
     try { records = getDefaultData(); } catch { records = []; }
