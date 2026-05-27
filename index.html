@@ -320,6 +320,7 @@
         <input type="file" accept=".json" onchange="importData(event)" style="display:none;">
       </label>
       <button class="btn" onclick="startQuiz()" id="quizModeBtn">刷题模式</button>
+      <button class="btn" onclick="forceEnrich()" id="enrichBtn" style="color:var(--warn);border-color:var(--warn);display:none;">更新解析</button>
       <button class="btn btn-primary" onclick="openModal()">+ 添加错题</button>
     </div>
   </div>
@@ -757,6 +758,7 @@ async function pullAndMerge() {
     // Apply enriched reasons from defaults
     if (enrichReasons(records)) { try { save(); } catch {} }
     renderAll();
+    updateEnrichBtn();
   } else if (gistData && gistData.length === 0 && records.length > 0) {
     // Gist is empty but local has data, push local
     await pushToGist();
@@ -1434,6 +1436,43 @@ function enrichReasons(targets) {
   return updated;
 }
 
+function forceEnrich() {
+  const btn = document.getElementById('enrichBtn');
+  if (enrichReasons(records)) {
+    save();
+    renderAll();
+    btn.textContent = '已更新！';
+    btn.style.color = 'var(--accent)';
+    btn.style.borderColor = 'var(--accent)';
+    setTimeout(() => {
+      btn.textContent = '更新解析';
+      btn.style.color = 'var(--warn)';
+      btn.style.borderColor = 'var(--warn)';
+      updateEnrichBtn();
+    }, 2000);
+  } else {
+    btn.textContent = '已是最新';
+    setTimeout(() => {
+      btn.textContent = '更新解析';
+      updateEnrichBtn();
+    }, 1500);
+  }
+}
+
+function updateEnrichBtn() {
+  const btn = document.getElementById('enrichBtn');
+  if (!btn) return;
+  // Show button if any record has a short/old reason
+  let hasOld = false;
+  try {
+    const defaults = getDefaultData();
+    const defaultMap = {};
+    defaults.forEach(d => { defaultMap[d.id] = d; });
+    hasOld = records.some(r => defaultMap[r.id] && defaultMap[r.id].reason && defaultMap[r.id].reason !== r.reason);
+  } catch {}
+  btn.style.display = hasOld ? '' : 'none';
+}
+
 function load() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -2015,6 +2054,7 @@ function escapeHtml(str) {
 loadSyncCfg();
 load();
 renderAll();
+updateEnrichBtn();
 
 // Background: pull from cloud if configured
 if (isSyncReady()) {
@@ -2022,6 +2062,7 @@ if (isSyncReady()) {
   pullAndMerge();
 } else {
   setSyncStatus('off');
+  updateEnrichBtn();
 }
 </script>
 
