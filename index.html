@@ -756,7 +756,9 @@ async function pullAndMerge() {
     const localOnly = records.filter(r => !gistIds.has(r.id));
     records = [...gistData, ...localOnly];
     // Apply enriched reasons from defaults
-    if (enrichReasons(records)) { try { save(); } catch {} }
+    let syncChanged = enrichReasons(records);
+    if (mergeNewRecords(records)) syncChanged = true;
+    if (syncChanged) { try { save(); } catch {} }
     renderAll();
     updateEnrichBtn();
   } else if (gistData && gistData.length === 0 && records.length > 0) {
@@ -1915,7 +1917,6 @@ function getDefaultData() {
 ]`);
 }
 function enrichReasons(targets) {
-  // Update reason fields from default data without changing other fields (reviewCount, mastered, etc.)
   let updated = false;
   try {
     const defaults = getDefaultData();
@@ -1931,9 +1932,27 @@ function enrichReasons(targets) {
   return updated;
 }
 
+function mergeNewRecords(targets) {
+  // Add new questions from defaults that don't exist in current data
+  let added = false;
+  try {
+    const defaults = getDefaultData();
+    const existingIds = new Set(targets.map(r => r.id));
+    defaults.forEach(d => {
+      if (!existingIds.has(d.id)) {
+        targets.push(d);
+        added = true;
+      }
+    });
+  } catch {}
+  return added;
+}
+
 function forceEnrich() {
   const btn = document.getElementById('enrichBtn');
-  if (enrichReasons(records)) {
+  let changed = enrichReasons(records);
+  if (mergeNewRecords(records)) changed = true;
+  if (changed) {
     save();
     renderAll();
     btn.textContent = '已更新！';
@@ -1957,15 +1976,17 @@ function forceEnrich() {
 function updateEnrichBtn() {
   const btn = document.getElementById('enrichBtn');
   if (!btn) return;
-  // Show button if any record has a short/old reason
-  let hasOld = false;
+  let show = false;
   try {
     const defaults = getDefaultData();
     const defaultMap = {};
     defaults.forEach(d => { defaultMap[d.id] = d; });
-    hasOld = records.some(r => defaultMap[r.id] && defaultMap[r.id].reason && defaultMap[r.id].reason !== r.reason);
+    const existingIds = new Set(records.map(r => r.id));
+    // Show if any new question is missing or any reason is outdated
+    show = defaults.some(d => !existingIds.has(d.id)) ||
+           records.some(r => defaultMap[r.id] && defaultMap[r.id].reason && defaultMap[r.id].reason !== r.reason);
   } catch {}
-  btn.style.display = hasOld ? '' : 'none';
+  btn.style.display = show ? '' : 'none';
 }
 
 function load() {
@@ -1976,9 +1997,10 @@ function load() {
       records = getDefaultData();
       try { save(); } catch {}
     } else {
-      const migrated = enrichReasons(loaded);
+      let changed = enrichReasons(loaded);
+      if (mergeNewRecords(loaded)) changed = true;
       records = loaded;
-      if (migrated) { try { save(); } catch {} }
+      if (changed) { try { save(); } catch {} }
     }
   } catch {
     try { records = getDefaultData(); } catch { records = []; }
