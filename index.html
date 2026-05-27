@@ -529,6 +529,7 @@ A. GDP=GNP  B. GDP包括中间产品  C. GDP按国土原则计算  D. GDP只算�
 
 <script>
 const STORAGE_KEY = 'errorbook_data_v4';
+const QUIZ_SESSION_KEY = 'errorbook_quiz_session_v1';
 
 let records = [];
 let subjects = new Set();
@@ -2363,6 +2364,29 @@ function save() {
   if (isSyncReady()) pushToGist();
 }
 
+function saveQuizSession() {
+  if (!quizState.active) return;
+  try {
+    const session = {
+      currentIndex: quizState.currentIndex,
+      answers: quizState.answers,
+      questionIds: quizState.questions.map(q => q.id)
+    };
+    localStorage.setItem(QUIZ_SESSION_KEY, JSON.stringify(session));
+  } catch {}
+}
+
+function loadQuizSession() {
+  try {
+    const raw = localStorage.getItem(QUIZ_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function clearQuizSession() {
+  try { localStorage.removeItem(QUIZ_SESSION_KEY); } catch {}
+}
+
 function refreshSubjects() {
   subjects = new Set(records.map(r => r.subject).filter(Boolean));
   const sel = document.getElementById('filterSubject');
@@ -2751,13 +2775,30 @@ let quizState = { active: false, currentIndex: 0, answers: {}, questions: [] };
 function startQuiz() {
   const withOptions = records.filter(r => r.options && r.options.length > 0);
   if (withOptions.length === 0) { alert('还没有带选项的题目，请先添加带选项的错题。'); return; }
-  quizState = { active: true, currentIndex: 0, answers: {}, questions: withOptions };
+
+  const currentIds = withOptions.map(q => q.id).sort().join(',');
+  const saved = loadQuizSession();
+  let resumeIdx = 0, resumeAnswers = {};
+
+  if (saved && saved.questionIds) {
+    const savedIds = [...saved.questionIds].sort().join(',');
+    if (savedIds === currentIds) {
+      const answeredCount = Object.keys(saved.answers).length;
+      if (answeredCount > 0 && confirm(`检测到上次刷题进度（已答 ${answeredCount} 题，进度 ${saved.currentIndex + 1}/${saved.questionIds.length}）。\n\n是否继续上次的进度？`)) {
+        resumeIdx = saved.currentIndex;
+        resumeAnswers = saved.answers;
+      }
+    }
+  }
+
+  quizState = { active: true, currentIndex: resumeIdx, answers: resumeAnswers, questions: withOptions };
   document.querySelector('.table-wrap').classList.add('hidden');
   document.querySelector('.toolbar').classList.add('hidden');
   document.querySelector('.stats-row').classList.add('hidden');
   document.getElementById('quizPanel').classList.remove('hidden');
   document.getElementById('quizModeBtn').textContent = '退出刷题';
   renderQuizQuestion();
+  saveQuizSession();
 }
 
 function exitQuiz() {
@@ -2853,6 +2894,7 @@ function selectOption(index) {
     }
   }
   save();
+  saveQuizSession();
   renderQuizQuestion();
 }
 
@@ -2860,6 +2902,7 @@ function nextQuestion() {
   if (quizState.currentIndex < quizState.questions.length - 1) {
     quizState.currentIndex++;
     renderQuizQuestion();
+    saveQuizSession();
   }
 }
 
@@ -2867,10 +2910,12 @@ function prevQuestion() {
   if (quizState.currentIndex > 0) {
     quizState.currentIndex--;
     renderQuizQuestion();
+    saveQuizSession();
   }
 }
 
 function showQuizSummary() {
+  clearQuizSession();
   const { questions, answers } = quizState;
   const total = questions.length;
   const correct = questions.filter(q => answers[q.id] === q.correctIndex).length;
@@ -2892,6 +2937,7 @@ function showQuizSummary() {
 }
 
 function retryWrongQuestions() {
+  clearQuizSession();
   const { questions, answers } = quizState;
   const wrong = questions.filter(q => answers[q.id] !== undefined && answers[q.id] !== q.correctIndex);
   if (wrong.length === 0) { alert('没有错题，太棒了！'); return; }
@@ -2902,6 +2948,7 @@ function retryWrongQuestions() {
 }
 
 function restartQuiz() {
+  clearQuizSession();
   quizState.currentIndex = 0;
   quizState.answers = {};
   quizState.questions = records.filter(r => r.options && r.options.length > 0);
